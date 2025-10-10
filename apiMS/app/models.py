@@ -1,7 +1,7 @@
 """
 Modelos SQLAlchemy para la base de datos
 """
-from sqlalchemy import Column, String, Boolean, DateTime
+from sqlalchemy import Column, String, Boolean, DateTime, Float, Integer, Text
 from .database import Base
 
 
@@ -16,6 +16,20 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+
+
+class Product(Base):
+    """Modelo de producto en la base de datos"""
+    __tablename__ = "products"
+    
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    price = Column(Float, nullable=False)
+    stock = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, nullable=False)
     updated_at = Column(DateTime, nullable=False)
 

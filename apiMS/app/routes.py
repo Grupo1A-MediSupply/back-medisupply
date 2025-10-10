@@ -1,16 +1,21 @@
 """
-Rutas de autenticación
+Rutas de autenticación y productos
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
+from typing import List
+from datetime import datetime
+import uuid
 
 from .auth_service import AuthService
 from .schemas import (
     LoginRequest, RefreshTokenRequest, UserCreate, UserResponse, 
-    Token, TokenVerifyResponse, LogoutResponse
+    Token, TokenVerifyResponse, LogoutResponse,
+    ProductCreate, ProductResponse
 )
 from .database import get_db
+from .models import Product
 
 router = APIRouter()
 security = HTTPBearer()
@@ -171,4 +176,64 @@ async def verify_token(
         return TokenVerifyResponse(valid=False, error="Token inválido")
     except Exception:
         return TokenVerifyResponse(valid=False, error="Error interno")
+
+
+# ========== Endpoints de Productos ==========
+
+@router.get(
+    "/products",
+    response_model=List[ProductResponse],
+    summary="Listar productos",
+    description="Obtiene el listado de todos los productos"
+)
+async def get_products(
+    db: Session = Depends(get_db)
+):
+    """Obtener listado de productos"""
+    try:
+        products = db.query(Product).filter(Product.is_active == True).all()
+        return products
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al obtener productos"
+        )
+
+
+@router.post(
+    "/products",
+    response_model=ProductResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear producto",
+    description="Crea un nuevo producto en el sistema"
+)
+async def create_product(
+    product_data: ProductCreate,
+    db: Session = Depends(get_db)
+):
+    """Crear nuevo producto"""
+    try:
+        # Crear nuevo producto
+        new_product = Product(
+            id=str(uuid.uuid4()),
+            name=product_data.name,
+            description=product_data.description,
+            price=product_data.price,
+            stock=product_data.stock,
+            is_active=product_data.is_active,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        
+        db.add(new_product)
+        db.commit()
+        db.refresh(new_product)
+        
+        return new_product
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al crear producto"
+        )
 

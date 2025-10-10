@@ -87,3 +87,43 @@ class LogoutResponse(BaseModel):
     """Respuesta de logout"""
     message: str
 
+
+# ========== Esquemas de Producto ==========
+
+class ProductBase(BaseModel):
+    """Modelo base de producto"""
+    name: str = Field(..., min_length=1, max_length=255, description="Nombre del producto")
+    description: Optional[str] = Field(None, description="Descripción del producto")
+    price: float = Field(..., gt=0, description="Precio del producto (debe ser mayor a 0)")
+    stock: int = Field(default=0, ge=0, description="Stock disponible")
+    is_active: bool = Field(default=True, description="Si el producto está activo")
+
+
+class ProductCreate(ProductBase):
+    """Modelo para crear producto"""
+    pass
+
+
+class ProductUpdate(BaseModel):
+    """Modelo para actualizar producto"""
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    price: Optional[float] = Field(None, gt=0)
+    stock: Optional[int] = Field(None, ge=0)
+    is_active: Optional[bool] = None
+
+
+class ProductResponse(BaseModel):
+    """Respuesta de producto"""
+    id: str
+    name: str
+    description: Optional[str] = None
+    price: float
+    stock: int
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+

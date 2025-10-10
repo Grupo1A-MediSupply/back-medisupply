@@ -1,6 +1,6 @@
-# API de Autenticación - FastAPI
+# API de Autenticación y Gestión de Productos - FastAPI
 
-Sistema de autenticación JWT construido con FastAPI.
+Sistema de autenticación JWT y gestión de productos construido con FastAPI.
 
 ## Características
 
@@ -9,6 +9,7 @@ Sistema de autenticación JWT construido con FastAPI.
 - **SQLAlchemy** para ORM
 - **JWT** para autenticación segura
 - **Bcrypt** para hash de contraseñas
+- **Gestión de productos** con endpoints CRUD
 - Documentación automática con Swagger UI
 
 ## Instalación
@@ -118,6 +119,54 @@ Verifica si un token es válido.
 Authorization: Bearer <access_token>
 ```
 
+## Endpoints de Productos
+
+### GET /api/v1/products
+Obtiene el listado de todos los productos activos.
+
+**Response:**
+```json
+[
+  {
+    "id": "uuid",
+    "name": "Laptop",
+    "description": "Laptop HP 15 pulgadas",
+    "price": 899.99,
+    "stock": 10,
+    "is_active": true,
+    "created_at": "2025-10-10T03:50:03.405408",
+    "updated_at": "2025-10-10T03:50:03.405411"
+  }
+]
+```
+
+### POST /api/v1/products
+Crea un nuevo producto en el sistema.
+
+**Request Body:**
+```json
+{
+  "name": "Laptop",
+  "description": "Laptop HP 15 pulgadas",
+  "price": 899.99,
+  "stock": 10
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "id": "uuid",
+  "name": "Laptop",
+  "description": "Laptop HP 15 pulgadas",
+  "price": 899.99,
+  "stock": 10,
+  "is_active": true,
+  "created_at": "2025-10-10T03:50:03.405408",
+  "updated_at": "2025-10-10T03:50:03.405411"
+}
+```
+
 ## Documentación API
 
 Una vez ejecutado el servidor, la documentación estará disponible en:
@@ -165,6 +214,24 @@ curl -X POST "http://localhost:8000/api/v1/auth/logout" \
   -H "Authorization: Bearer <access_token>"
 ```
 
+### Ejemplos de Productos
+
+```bash
+# 1. Listar productos
+curl -X GET "http://localhost:8000/api/v1/products" \
+  -H "Content-Type: application/json"
+
+# 2. Crear producto
+curl -X POST "http://localhost:8000/api/v1/products" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Laptop HP",
+    "description": "Laptop HP 15 pulgadas",
+    "price": 899.99,
+    "stock": 10
+  }'
+```
+
 ## Estructura del Proyecto
 
 ```
@@ -174,19 +241,39 @@ apiMS/
 │   ├── main.py              # Aplicación principal
 │   ├── config.py            # Configuración
 │   ├── database.py          # Configuración de BD
-│   ├── models.py            # Modelos SQLAlchemy
+│   ├── models.py            # Modelos SQLAlchemy (User, Product)
 │   ├── schemas.py           # Esquemas Pydantic
 │   ├── auth_service.py      # Lógica de autenticación
 │   ├── jwt_service.py       # Manejo de JWT
-│   └── routes.py            # Rutas de la API
+│   └── routes.py            # Rutas de la API (auth + products)
 ├── .env                     # Variables de entorno (no versionado)
 ├── .env.example             # Ejemplo de variables
 ├── .gitignore
 ├── requirements.txt
 ├── README.md
-├── init_db.py              # Script para inicializar BD
-└── run.py                  # Script para ejecutar
+├── init_db.py               # Script para inicializar BD
+├── run.py                   # Script para ejecutar servidor
+├── test_endpoints.py        # Script de pruebas automatizadas
+├── PRUEBAS_PRODUCTOS.md     # Documentación de pruebas
+└── EJEMPLOS_USO.md          # Ejemplos detallados
 ```
+
+## Pruebas Automatizadas
+
+El proyecto incluye un script de pruebas automatizadas que verifica todos los endpoints:
+
+```bash
+# Ejecutar pruebas (asegúrate de que el servidor esté corriendo)
+python test_endpoints.py
+```
+
+Las pruebas verifican:
+- ✅ Login con credenciales válidas devuelve JWT
+- ✅ Login con credenciales inválidas devuelve 401 Unauthorized
+- ✅ GET /products devuelve listado JSON con id, name y price
+- ✅ POST /products crea producto y responde con 201 Created
+
+Ver detalles en `PRUEBAS_PRODUCTOS.md`.
 
 ## Seguridad
 
