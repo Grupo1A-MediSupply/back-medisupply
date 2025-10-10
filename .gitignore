@@ -169,3 +169,6 @@ dump.rdb
 
 # Old files/backups
 old/
+
+# Carpetas de proyectos
+codigoV3/
