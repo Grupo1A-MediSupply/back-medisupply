@@ -1,0 +1,4 @@
+"""
+Módulo compartido entre microservicios
+"""
+
