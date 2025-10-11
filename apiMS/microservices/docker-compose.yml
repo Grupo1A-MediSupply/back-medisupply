@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "8001:8001"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - AUTH_SERVICE_PORT=8001
+      - AUTH_DATABASE_URL=sqlite:///./auth_service.db
+      - SECRET_KEY=your-super-secret-key-change-in-production
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:8080"]
+    volumes:
+      - ./auth-service:/app
+      - auth-db:/app/data
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: product-service
+    ports:
+      - "8002:8002"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - PRODUCT_SERVICE_PORT=8002
+      - PRODUCT_DATABASE_URL=sqlite:///./product_service.db
+      - AUTH_SERVICE_URL=http://auth-service:8001
+      - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:8080"]
+    volumes:
+      - ./product-service:/app
+      - product-db:/app/data
+    networks:
+      - microservices-network
+    depends_on:
+      - auth-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # API Gateway (opcional - para futuras implementaciones)
+  # api-gateway:
+  #   build:
+  #     context: ./api-gateway
+  #     dockerfile: Dockerfile
+  #   container_name: api-gateway
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     - AUTH_SERVICE_URL=http://auth-service:8001
+  #     - PRODUCT_SERVICE_URL=http://product-service:8002
+  #   networks:
+  #     - microservices-network
+  #   depends_on:
+  #     - auth-service
+  #     - product-service
+
+volumes:
+  auth-db:
+  product-db:
+
+networks:
+  microservices-network:
+    driver: bridge
+
