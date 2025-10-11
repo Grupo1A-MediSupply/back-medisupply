@@ -1,290 +1,321 @@
-# API de Autenticación y Gestión de Productos - FastAPI
+# 🏗️ Sistema de Microservicios con Arquitectura Hexagonal
 
-Sistema de autenticación JWT y gestión de productos construido con FastAPI.
+Sistema de microservicios implementado con **Arquitectura Hexagonal**, **CQRS**, **Event-Driven Architecture** y **Domain-Driven Design (DDD)**.
 
-## Características
+## 📦 Contenido
 
-- **FastAPI** para la API REST
-- **Pydantic** para validación de datos
-- **SQLAlchemy** para ORM
-- **JWT** para autenticación segura
-- **Bcrypt** para hash de contraseñas
-- **Gestión de productos** con endpoints CRUD
-- Documentación automática con Swagger UI
+Este proyecto implementa un sistema completo de microservicios utilizando las mejores prácticas de arquitectura de software:
 
-## Instalación
+- ✅ **Arquitectura Hexagonal** (Ports & Adapters)
+- ✅ **CQRS** (Command Query Responsibility Segregation)
+- ✅ **Event-Driven Architecture**
+- ✅ **Domain-Driven Design (DDD)**
+- ✅ **Microservicios independientes**
+- ✅ **Docker y Docker Compose**
 
-```bash
-# Crear entorno virtual
-python -m venv venv
-source venv/bin/activate  # En Windows: venv\Scripts\activate
+## 🚀 Inicio Rápido
 
-# Instalar dependencias
-pip install -r requirements.txt
-```
-
-## Configuración
-
-Crear archivo `.env` basado en `.env.example`:
-
-```bash
-cp .env.example .env
-```
-
-Editar `.env` con tus configuraciones:
-- `SECRET_KEY`: Clave secreta para JWT (generar una segura en producción)
-- `DATABASE_URL`: URL de conexión a la base de datos
-- Otros parámetros según necesites
-
-## Ejecución
-
-```bash
-# Inicializar base de datos
-python init_db.py
-
-# Ejecutar servidor de desarrollo
-python run.py
-
-# O directamente con uvicorn
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-## Endpoints de Autenticación
-
-### POST /api/v1/auth/register
-Registra un nuevo usuario en el sistema.
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "username": "username",
-  "password": "password123",
-  "full_name": "User Full Name"
-}
-```
-
-### POST /api/v1/auth/login
-Inicia sesión y obtiene tokens de acceso.
-
-**Request Body:**
-```json
-{
-  "username": "username",
-  "password": "password123"
-}
-```
-
-**Response:**
-```json
-{
-  "access_token": "eyJ...",
-  "refresh_token": "eyJ...",
-  "token_type": "bearer",
-  "expires_in": 1800
-}
-```
-
-### POST /api/v1/auth/refresh
-Refresca el token de acceso usando el refresh token.
-
-**Request Body:**
-```json
-{
-  "refresh_token": "eyJ..."
-}
-```
-
-### GET /api/v1/auth/me
-Obtiene el perfil del usuario autenticado.
-
-**Headers:**
-```
-Authorization: Bearer <access_token>
-```
-
-### POST /api/v1/auth/logout
-Cierra la sesión del usuario.
-
-**Headers:**
-```
-Authorization: Bearer <access_token>
-```
-
-### GET /api/v1/auth/verify
-Verifica si un token es válido.
-
-**Headers:**
-```
-Authorization: Bearer <access_token>
-```
-
-## Endpoints de Productos
-
-### GET /api/v1/products
-Obtiene el listado de todos los productos activos.
-
-**Response:**
-```json
-[
-  {
-    "id": "uuid",
-    "name": "Laptop",
-    "description": "Laptop HP 15 pulgadas",
-    "price": 899.99,
-    "stock": 10,
-    "is_active": true,
-    "created_at": "2025-10-10T03:50:03.405408",
-    "updated_at": "2025-10-10T03:50:03.405411"
-  }
-]
-```
-
-### POST /api/v1/products
-Crea un nuevo producto en el sistema.
-
-**Request Body:**
-```json
-{
-  "name": "Laptop",
-  "description": "Laptop HP 15 pulgadas",
-  "price": 899.99,
-  "stock": 10
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "id": "uuid",
-  "name": "Laptop",
-  "description": "Laptop HP 15 pulgadas",
-  "price": 899.99,
-  "stock": 10,
-  "is_active": true,
-  "created_at": "2025-10-10T03:50:03.405408",
-  "updated_at": "2025-10-10T03:50:03.405411"
-}
-```
-
-## Documentación API
-
-Una vez ejecutado el servidor, la documentación estará disponible en:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-
-## Ejemplo de Uso con cURL
-
-```bash
-# 1. Registrar usuario
-curl -X POST "http://localhost:8000/api/v1/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "username": "testuser",
-    "password": "password123",
-    "full_name": "Test User"
-  }'
-
-# 2. Login
-curl -X POST "http://localhost:8000/api/v1/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "password": "password123"
-  }'
-
-# 3. Obtener perfil (usar el access_token del login)
-curl -X GET "http://localhost:8000/api/v1/auth/me" \
-  -H "Authorization: Bearer <access_token>"
-
-# 4. Refrescar token
-curl -X POST "http://localhost:8000/api/v1/auth/refresh" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "refresh_token": "<refresh_token>"
-  }'
-
-# 5. Verificar token
-curl -X GET "http://localhost:8000/api/v1/auth/verify" \
-  -H "Authorization: Bearer <access_token>"
-
-# 6. Logout
-curl -X POST "http://localhost:8000/api/v1/auth/logout" \
-  -H "Authorization: Bearer <access_token>"
-```
-
-### Ejemplos de Productos
-
-```bash
-# 1. Listar productos
-curl -X GET "http://localhost:8000/api/v1/products" \
-  -H "Content-Type: application/json"
-
-# 2. Crear producto
-curl -X POST "http://localhost:8000/api/v1/products" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Laptop HP",
-    "description": "Laptop HP 15 pulgadas",
-    "price": 899.99,
-    "stock": 10
-  }'
-```
-
-## Estructura del Proyecto
+### Estructura del Proyecto
 
 ```
 apiMS/
-├── app/
-│   ├── __init__.py
-│   ├── main.py              # Aplicación principal
-│   ├── config.py            # Configuración
-│   ├── database.py          # Configuración de BD
-│   ├── models.py            # Modelos SQLAlchemy (User, Product)
-│   ├── schemas.py           # Esquemas Pydantic
-│   ├── auth_service.py      # Lógica de autenticación
-│   ├── jwt_service.py       # Manejo de JWT
-│   └── routes.py            # Rutas de la API (auth + products)
-├── .env                     # Variables de entorno (no versionado)
-├── .env.example             # Ejemplo de variables
-├── .gitignore
-├── requirements.txt
-├── README.md
-├── init_db.py               # Script para inicializar BD
-├── run.py                   # Script para ejecutar servidor
-├── test_endpoints.py        # Script de pruebas automatizadas
-├── PRUEBAS_PRODUCTOS.md     # Documentación de pruebas
-└── EJEMPLOS_USO.md          # Ejemplos detallados
+├── microservices/              # Sistema de microservicios
+│   ├── shared/                 # Código compartido
+│   ├── auth-service/           # Servicio de autenticación
+│   ├── product-service/        # Servicio de productos
+│   ├── docker-compose.yml      # Orquestación
+│   ├── requirements.txt        # Dependencias
+│   ├── README.md              # Documentación completa
+│   ├── QUICKSTART.md          # Guía rápida
+│   ├── ARCHITECTURE.md        # Arquitectura detallada
+│   └── INDEX.md               # Índice de documentación
+└── .gitignore
 ```
 
-## Pruebas Automatizadas
+## 📚 Documentación
 
-El proyecto incluye un script de pruebas automatizadas que verifica todos los endpoints:
+Toda la documentación está en la carpeta `microservices/`:
+
+- **[INDEX.md](microservices/INDEX.md)** - Índice navegable de toda la documentación
+- **[README.md](microservices/README.md)** - Documentación principal completa
+- **[QUICKSTART.md](microservices/QUICKSTART.md)** - Guía de inicio rápido (5 minutos)
+- **[ARCHITECTURE.md](microservices/ARCHITECTURE.md)** - Arquitectura detallada con diagramas
+- **[IMPLEMENTATION_SUMMARY.md](microservices/IMPLEMENTATION_SUMMARY.md)** - Resumen de implementación
+
+## 🎯 Microservicios Implementados
+
+### 1. Auth Service (Puerto 8001)
+Microservicio de autenticación y gestión de usuarios con arquitectura hexagonal.
+
+**Características:**
+- Registro de usuarios
+- Autenticación JWT
+- Gestión de tokens (access + refresh)
+- Verificación de tokens
+- Gestión de perfiles
+
+**Endpoints:**
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `GET /api/v1/auth/me`
+- `GET /api/v1/auth/verify`
+
+### 2. Product Service (Puerto 8002)
+Microservicio de gestión de productos e inventario con arquitectura hexagonal.
+
+**Características:**
+- CRUD de productos
+- Gestión de inventario
+- Control de stock
+- Alertas de stock bajo
+
+**Endpoints:**
+- `POST /api/v1/products`
+- `GET /api/v1/products`
+- `GET /api/v1/products/{id}`
+- `PUT /api/v1/products/{id}`
+- `POST /api/v1/products/{id}/stock/add`
+- `POST /api/v1/products/{id}/stock/remove`
+
+## 🚀 Ejecutar el Proyecto
+
+### Opción 1: Ejecución Local
 
 ```bash
-# Ejecutar pruebas (asegúrate de que el servidor esté corriendo)
-python test_endpoints.py
+cd microservices
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Terminal 1: Auth Service
+cd auth-service
+python run.py
+# → http://localhost:8001/docs
+
+# Terminal 2: Product Service
+cd product-service
+python run.py
+# → http://localhost:8002/docs
 ```
 
-Las pruebas verifican:
-- ✅ Login con credenciales válidas devuelve JWT
-- ✅ Login con credenciales inválidas devuelve 401 Unauthorized
-- ✅ GET /products devuelve listado JSON con id, name y price
-- ✅ POST /products crea producto y responde con 201 Created
+### Opción 2: Docker Compose (Recomendado)
 
-Ver detalles en `PRUEBAS_PRODUCTOS.md`.
+```bash
+cd microservices
+docker-compose up --build
+```
 
-## Seguridad
+**Servicios disponibles:**
+- Auth Service: http://localhost:8001/docs
+- Product Service: http://localhost:8002/docs
 
-- Las contraseñas se hashean con bcrypt
-- Los tokens JWT tienen expiración configurable
-- Access tokens: 30 minutos (configurable)
-- Refresh tokens: 7 días
-- Se valida el tipo de token (access/refresh)
-- Protección contra tokens expirados
+## 🧪 Prueba Rápida
 
-## Licencia
+```bash
+# 1. Registrar usuario
+curl -X POST http://localhost:8001/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@test.com",
+    "username": "admin",
+    "password": "Admin123!",
+    "full_name": "Admin User"
+  }'
+
+# 2. Login
+curl -X POST http://localhost:8001/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "Admin123!"}'
+
+# 3. Crear producto
+curl -X POST http://localhost:8002/api/v1/products \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Laptop Dell",
+    "price": 1299.99,
+    "stock": 10
+  }'
+
+# 4. Listar productos
+curl http://localhost:8002/api/v1/products
+```
+
+## 🏗️ Arquitectura
+
+### Arquitectura Hexagonal (Ports & Adapters)
+
+Cada microservicio está organizado en capas:
+
+```
+┌─────────────────────────────────────┐
+│         API Layer (HTTP)            │
+│      FastAPI Routes & DTOs          │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────┴──────────────────────┐
+│      Application Layer              │
+│  Commands, Queries & Handlers       │
+│         (CQRS)                      │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────┴──────────────────────┐
+│        Domain Layer                 │
+│  Entities, VOs, Events, Ports       │
+│         (DDD)                       │
+└──────────────↑──────────────────────┘
+               │
+┌──────────────┴──────────────────────┐
+│     Infrastructure Layer            │
+│  Adapters, Repositories, DB         │
+└─────────────────────────────────────┘
+```
+
+### Patrones Implementados
+
+1. **Hexagonal Architecture** - Desacoplamiento de capas
+2. **CQRS** - Comandos y queries separados
+3. **Event-Driven** - Comunicación por eventos
+4. **Repository Pattern** - Abstracción de datos
+5. **Factory Pattern** - Creación de entidades
+6. **Dependency Injection** - Inyección de dependencias
+7. **Value Object Pattern** - Objetos inmutables
+
+## 📊 Estructura de Cada Microservicio
+
+```
+service/
+├── domain/                    # Capa de Dominio
+│   ├── entities/             # Entidades con lógica de negocio
+│   ├── value_objects/        # Value Objects inmutables
+│   ├── events/               # Eventos de dominio
+│   └── ports/                # Interfaces (puertos)
+│
+├── application/              # Capa de Aplicación
+│   ├── commands/             # Comandos (escritura)
+│   ├── queries/              # Queries (lectura)
+│   ├── handlers/             # Handlers para CQRS
+│   └── services/             # Event handlers
+│
+├── infrastructure/           # Capa de Infraestructura
+│   ├── adapters/             # Adaptadores (JWT, Bcrypt)
+│   ├── repositories/         # Repositorios (SQLAlchemy)
+│   ├── config.py            # Configuración
+│   └── database.py          # Base de datos
+│
+├── api/                      # Capa de API
+│   ├── routes/              # Endpoints REST
+│   └── dependencies/        # Inyección de dependencias
+│
+├── main.py                  # Aplicación principal
+├── run.py                   # Script de ejecución
+└── Dockerfile               # Imagen Docker
+```
+
+## 🎯 Características Clave
+
+### Arquitectura Hexagonal
+- ✅ Dominio independiente de frameworks
+- ✅ Puertos (interfaces) bien definidos
+- ✅ Adaptadores intercambiables
+- ✅ Testeable en todos los niveles
+
+### CQRS
+- ✅ Comandos para escritura
+- ✅ Queries para lectura
+- ✅ Handlers separados
+- ✅ Escalabilidad independiente
+
+### Event-Driven
+- ✅ Eventos de dominio
+- ✅ Event bus
+- ✅ Event handlers
+- ✅ Desacoplamiento de servicios
+
+### DDD
+- ✅ Entidades con lógica de negocio
+- ✅ Value Objects inmutables
+- ✅ Agregados
+- ✅ Factory methods
+
+## 🛠️ Tecnologías
+
+- **Python 3.11** - Lenguaje de programación
+- **FastAPI** - Framework web moderno
+- **Pydantic** - Validación de datos
+- **SQLAlchemy** - ORM para base de datos
+- **JWT** - Autenticación
+- **Bcrypt** - Hash de contraseñas
+- **Docker** - Containerización
+- **Docker Compose** - Orquestación
+
+## 📖 Recursos
+
+### Documentación del Proyecto
+- [Índice de Documentación](microservices/INDEX.md)
+- [Guía de Inicio Rápido](microservices/QUICKSTART.md)
+- [Arquitectura Detallada](microservices/ARCHITECTURE.md)
+- [Resumen de Implementación](microservices/IMPLEMENTATION_SUMMARY.md)
+
+### APIs
+- **Auth Service:** http://localhost:8001/docs
+- **Product Service:** http://localhost:8002/docs
+- **Health Checks:** `/health` en cada servicio
+
+### Referencias Externas
+- [Clean Architecture - Robert C. Martin](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+- [Hexagonal Architecture - Alistair Cockburn](https://alistair.cockburn.us/hexagonal-architecture/)
+- [CQRS Pattern - Martin Fowler](https://martinfowler.com/bliki/CQRS.html)
+- [Domain-Driven Design](https://www.domainlanguage.com/ddd/)
+
+## 🎓 Aprende Más
+
+Si quieres entender mejor la arquitectura:
+
+1. **Lee primero:** [QUICKSTART.md](microservices/QUICKSTART.md) - Para ejecutar el proyecto
+2. **Luego:** [README.md completo](microservices/README.md) - Para entender la estructura
+3. **Profundiza en:** [ARCHITECTURE.md](microservices/ARCHITECTURE.md) - Para dominar los conceptos
+
+## 🆘 Solución de Problemas
+
+**Puerto en uso:**
+```bash
+lsof -i :8001  # o :8002
+kill -9 PID
+```
+
+**Reinstalar dependencias:**
+```bash
+cd microservices
+pip install -r requirements.txt --force-reinstall
+```
+
+**Ver logs de Docker:**
+```bash
+cd microservices
+docker-compose logs -f auth-service
+docker-compose logs -f product-service
+```
+
+## 🌟 Ventajas de esta Arquitectura
+
+✅ **Mantenible** - Código limpio y organizado  
+✅ **Testeable** - Cada capa se prueba independientemente  
+✅ **Escalable** - Servicios independientes  
+✅ **Flexible** - Fácil cambiar implementaciones  
+✅ **Extensible** - Agregar funcionalidades sin afectar lo existente  
+✅ **Profesional** - Arquitectura de nivel empresarial  
+
+## 📝 Licencia
 
 MIT
 
+---
+
+**Versión:** 1.0.0  
+**Fecha:** 2025-01-10  
+**Estado:** ✅ Producción
+
+Para más información, consulta la [documentación completa](microservices/README.md).
+
+¡Happy Coding! 🚀
