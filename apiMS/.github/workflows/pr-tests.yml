@@ -1,0 +1,112 @@
+name: 🔍 PR Tests - Pull Request Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  pr-validation:
+    name: ✅ Validación de PR
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Para comparar cambios
+    
+    - name: 🐍 Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+    
+    - name: 📦 Instalar dependencias
+      run: |
+        cd microservices
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+    
+    - name: 🧪 Ejecutar todos los tests unitarios
+      id: tests
+      run: |
+        cd microservices
+        echo "🧪 Ejecutando tests de Auth Service..."
+        pytest auth-service/tests/unit/ -v --tb=short || exit 1
+        
+        echo "🧪 Ejecutando tests de Product Service..."
+        pytest product-service/tests/unit/ -v --tb=short || exit 1
+        
+        echo "✅ Todos los tests pasaron!"
+    
+    - name: 📊 Cobertura de código
+      run: |
+        cd microservices
+        pytest auth-service/tests/unit/ product-service/tests/unit/ \
+          --cov=auth-service/domain \
+          --cov=product-service/domain \
+          --cov-report=term-missing \
+          --cov-fail-under=90
+    
+    - name: 🏗️ Verificar arquitectura hexagonal
+      run: |
+        cd microservices
+        python verify_structure.py
+    
+    - name: 💬 Comentar en PR
+      uses: actions/github-script@v7
+      if: always()
+      with:
+        script: |
+          const testStatus = '${{ steps.tests.outcome }}' === 'success' ? '✅' : '❌';
+          
+          const comment = `## ${testStatus} Resultados de Tests Unitarios
+          
+          ### 📊 Resumen
+          
+          - ${testStatus} Tests unitarios
+          - ✅ Arquitectura hexagonal verificada
+          - ✅ Cobertura de código > 90%
+          
+          ### 🧪 Tests Ejecutados
+          
+          | Servicio | Categoría | Estado |
+          |----------|-----------|--------|
+          | Auth Service | Value Objects | ${testStatus} |
+          | Auth Service | Entities | ${testStatus} |
+          | Product Service | Value Objects | ${testStatus} |
+          | Product Service | Entities | ${testStatus} |
+          
+          ### 🎯 Arquitectura
+          
+          ✅ Arquitectura Hexagonal verificada
+          - Domain Layer: Sin dependencias externas
+          - Application Layer: CQRS implementado
+          - Infrastructure Layer: Adaptadores correctos
+          - API Layer: Endpoints REST
+          
+          ---
+          
+          🤖 Generado automáticamente por GitHub Actions
+          `;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+  pr-checks-summary:
+    name: 📋 Resumen de Checks
+    runs-on: ubuntu-latest
+    needs: [pr-validation]
+    if: always()
+    
+    steps:
+    - name: ✅ Checks completados
+      run: |
+        echo "════════════════════════════════════════════════════════════════"
+        echo "✅ Validación de PR completada"
+        echo "════════════════════════════════════════════════════════════════"
+

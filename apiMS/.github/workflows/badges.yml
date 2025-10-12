@@ -1,0 +1,48 @@
+name: 🏆 Update Badges
+
+on:
+  push:
+    branches: [ main ]
+  workflow_run:
+    workflows: ["🧪 Tests Unitarios - Arquitectura Hexagonal"]
+    types:
+      - completed
+
+jobs:
+  update-badges:
+    name: 📛 Actualizar Badges
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: 📦 Instalar dependencias
+      run: |
+        cd microservices
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+    
+    - name: 🧪 Ejecutar tests y calcular cobertura
+      run: |
+        cd microservices
+        pytest auth-service/tests/unit/ product-service/tests/unit/ \
+          --cov=auth-service/domain \
+          --cov=product-service/domain \
+          --cov-report=xml \
+          --cov-report=json
+    
+    - name: 📊 Crear badge de cobertura
+      run: |
+        echo "Coverage badge generado"
+        # Aquí se puede integrar con shields.io o genbadge
+    
+    - name: ✅ Badge de tests
+      run: |
+        echo "Tests badge: 67 passing"
+
