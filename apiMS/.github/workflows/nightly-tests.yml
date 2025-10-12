@@ -1,0 +1,73 @@
+name: 🌙 Nightly Tests - Tests Nocturnos
+
+on:
+  schedule:
+    # Ejecutar todos los días a las 2:00 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Permite ejecución manual
+
+jobs:
+  comprehensive-tests:
+    name: 🧪 Tests Completos Nocturnos
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Configurar Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: 📦 Instalar todas las dependencias
+      run: |
+        cd microservices
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+        pip install flake8 black isort mypy pylint
+    
+    - name: 🧪 Ejecutar tests con máxima verbosidad
+      run: |
+        cd microservices
+        pytest auth-service/tests/unit/ -vv --tb=long
+        pytest product-service/tests/unit/ -vv --tb=long
+    
+    - name: 📊 Generar reporte completo de cobertura
+      run: |
+        cd microservices
+        pytest auth-service/tests/unit/ product-service/tests/unit/ \
+          --cov=auth-service \
+          --cov=product-service \
+          --cov-report=html \
+          --cov-report=xml \
+          --cov-report=term-missing
+    
+    - name: 📤 Subir reporte
+      uses: actions/upload-artifact@v4
+      with:
+        name: nightly-coverage-py${{ matrix.python-version }}
+        path: microservices/htmlcov/
+    
+    - name: 🔍 Análisis de calidad completo
+      run: |
+        cd microservices
+        echo "🎨 Verificando formato..."
+        black --check auth-service/ product-service/ shared/ || true
+        
+        echo "📏 Verificando imports..."
+        isort --check-only auth-service/ product-service/ shared/ || true
+        
+        echo "🔍 Análisis estático..."
+        flake8 auth-service/ product-service/ shared/ --max-line-length=100 || true
+    
+    - name: 📧 Notificar resultados
+      if: failure()
+      run: |
+        echo "⚠️ Tests nocturnos fallaron en Python ${{ matrix.python-version }}"
+        echo "Se recomienda revisar los logs"
+
