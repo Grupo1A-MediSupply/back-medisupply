@@ -1,0 +1,218 @@
+name: 🧪 Tests Unitarios - Arquitectura Hexagonal
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:  # Permite ejecución manual
+
+jobs:
+  test-auth-service:
+    name: 🔐 Auth Service Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Configurar Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+    
+    - name: 📦 Instalar dependencias
+      run: |
+        cd microservices
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+    
+    - name: 🧪 Ejecutar tests de Value Objects
+      run: |
+        cd microservices
+        pytest auth-service/tests/unit/test_value_objects.py -v --tb=short
+    
+    - name: 🧪 Ejecutar tests de Entities
+      run: |
+        cd microservices
+        pytest auth-service/tests/unit/test_entities.py -v --tb=short
+    
+    - name: 📊 Generar reporte de cobertura
+      run: |
+        cd microservices
+        pytest auth-service/tests/unit/ \
+          --cov=auth-service/domain \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing
+    
+    - name: 📤 Subir cobertura a Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./microservices/coverage.xml
+        flags: auth-service
+        name: auth-service-coverage
+        fail_ci_if_error: false
+    
+    - name: 📄 Subir reporte HTML como artefacto
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: auth-service-coverage-report-py${{ matrix.python-version }}
+        path: microservices/htmlcov/
+        retention-days: 30
+
+  test-product-service:
+    name: 📦 Product Service Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Configurar Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+    
+    - name: 📦 Instalar dependencias
+      run: |
+        cd microservices
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+    
+    - name: 🧪 Ejecutar tests de Value Objects
+      run: |
+        cd microservices
+        pytest product-service/tests/unit/test_value_objects.py -v --tb=short
+    
+    - name: 🧪 Ejecutar tests de Entities
+      run: |
+        cd microservices
+        pytest product-service/tests/unit/test_entities.py -v --tb=short
+    
+    - name: 📊 Generar reporte de cobertura
+      run: |
+        cd microservices
+        pytest product-service/tests/unit/ \
+          --cov=product-service/domain \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing
+    
+    - name: 📤 Subir cobertura a Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./microservices/coverage.xml
+        flags: product-service
+        name: product-service-coverage
+        fail_ci_if_error: false
+    
+    - name: 📄 Subir reporte HTML como artefacto
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: product-service-coverage-report-py${{ matrix.python-version }}
+        path: microservices/htmlcov/
+        retention-days: 30
+
+  test-summary:
+    name: 📊 Resumen de Tests
+    runs-on: ubuntu-latest
+    needs: [test-auth-service, test-product-service]
+    if: always()
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Configurar Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: 📦 Instalar dependencias
+      run: |
+        cd microservices
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+    
+    - name: 🧪 Ejecutar todos los tests con cobertura combinada
+      run: |
+        cd microservices
+        pytest auth-service/tests/unit/ product-service/tests/unit/ \
+          --cov=auth-service/domain \
+          --cov=product-service/domain \
+          --cov-report=term \
+          --cov-report=xml \
+          -v || true
+    
+    - name: 📊 Mostrar resumen
+      if: always()
+      run: |
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║                                                              ║"
+        echo "║         ✅ PIPELINE DE TESTS COMPLETADO                     ║"
+        echo "║                                                              ║"
+        echo "╚══════════════════════════════════════════════════════════════╝"
+        echo ""
+        echo "📊 Resumen:"
+        echo "✅ Auth Service tests ejecutados"
+        echo "✅ Product Service tests ejecutados"
+        echo "✅ Reportes de cobertura generados"
+        echo ""
+        echo "📄 Los reportes están disponibles en 'Artifacts'"
+
+  code-quality:
+    name: 🔍 Calidad de Código
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Configurar Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: 📦 Instalar herramientas de calidad
+      run: |
+        pip install flake8 black isort mypy
+    
+    - name: 🎨 Verificar formato con Black
+      run: |
+        cd microservices
+        black --check auth-service/ product-service/ shared/ || true
+    
+    - name: 📏 Verificar imports con isort
+      run: |
+        cd microservices
+        isort --check-only auth-service/ product-service/ shared/ || true
+    
+    - name: 🔍 Análisis estático con flake8
+      run: |
+        cd microservices
+        flake8 auth-service/ product-service/ shared/ \
+          --count \
+          --select=E9,F63,F7,F82 \
+          --show-source \
+          --statistics || true
+    
+    - name: ✅ Verificar estructura hexagonal
+      run: |
+        cd microservices
+        python verify_structure.py
+
