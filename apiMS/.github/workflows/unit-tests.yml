@@ -24,19 +24,17 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-        cache: 'pip'
-        cache-dependency-path: 'requirements*.txt'
     
     - name: 📦 Instalar dependencias
       run: |
-        cd microservices
+        cd apiMS/microservices
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-test.txt
     
     - name: 🧪 Ejecutar tests - Auth Service
       run: |
-        cd microservices
+        cd apiMS/microservices
         echo "════════════════════════════════════════════════"
         echo "🔐 Auth Service - Tests Unitarios"
         echo "════════════════════════════════════════════════"
@@ -44,7 +42,7 @@ jobs:
     
     - name: 🧪 Ejecutar tests - Product Service
       run: |
-        cd microservices
+        cd apiMS/microservices
         echo "════════════════════════════════════════════════"
         echo "📦 Product Service - Tests Unitarios"
         echo "════════════════════════════════════════════════"
@@ -52,7 +50,7 @@ jobs:
     
     - name: 📊 Generar reporte de cobertura
       run: |
-        cd microservices
+        cd apiMS/microservices
         pytest auth-service/tests/unit/ product-service/tests/unit/ \
           --cov=auth-service/domain \
           --cov=product-service/domain \
@@ -64,7 +62,7 @@ jobs:
       uses: codecov/codecov-action@v4
       if: matrix.python-version == '3.12'
       with:
-        file: ./microservices/coverage.xml
+        file: ./apiMS/microservices/coverage.xml
         fail_ci_if_error: false
       continue-on-error: true
     
@@ -73,7 +71,7 @@ jobs:
       if: matrix.python-version == '3.12'
       with:
         name: coverage-report
-        path: microservices/htmlcov/
+        path: apiMS/microservices/htmlcov/
         retention-days: 30
     
     - name: ✅ Resumen de tests
