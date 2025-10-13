@@ -319,3 +319,11 @@ MIT
 Para más información, consulta la [documentación completa](microservices/README.md).
 
 ¡Happy Coding! 🚀
+
+![Tests](https://github.com/USUARIO/REPO/actions/workflows/tests.yml/badge.svg)
+![CI/CD](https://github.com/USUARIO/REPO/actions/workflows/ci-cd.yml/badge.svg)
+![Coverage](https://codecov.io/gh/USUARIO/REPO/branch/main/graph/badge.svg)
+![Python](https://img.shields.io/badge/python-3.11%20|%203.12-blue)
+![Architecture](https://img.shields.io/badge/architecture-hexagonal-green)
+![CQRS](https://img.shields.io/badge/pattern-CQRS-orange)
+![Tests](https://img.shields.io/badge/tests-67%20passing-brightgreen)
