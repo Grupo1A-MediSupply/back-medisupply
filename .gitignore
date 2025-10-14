@@ -172,3 +172,7 @@ old/
 
 # Carpetas de proyectos
 codigoV3/
+
+# Documentation files - ignore all .md files except README.md
+*.md
+!README.md
