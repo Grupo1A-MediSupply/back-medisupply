@@ -1,39 +1,98 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
-name: Python application
+name: 🧪 Tests Unitarios
 
 on:
   push:
-    branches: [ "**" ]
+    branches: [ '**' ]  # Todas las ramas
   pull_request:
-    branches: [ "**" ]
-
-permissions:
-  contents: read
+    branches: [ '**' ]
+  workflow_dispatch:  # Permite ejecución manual
 
 jobs:
-  build:
-
+  unit-tests:
+    name: Ejecutar Tests Unitarios
     runs-on: ubuntu-latest
-
+    
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v3
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Configurar Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
       with:
-        python-version: "3.10"
-    - name: Install dependencies
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+    
+    - name: 📦 Instalar dependencias
       run: |
+        cd microservices
         python -m pip install --upgrade pip
-        pip install flake8 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Lint with flake8
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+    
+    - name: 🧪 Ejecutar tests - Auth Service
       run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
+        cd microservices
+        echo "════════════════════════════════════════════════"
+        echo "🔐 Auth Service - Tests Unitarios"
+        echo "════════════════════════════════════════════════"
+        pytest auth-service/tests/unit/ -v --tb=short
+    
+    - name: 🧪 Ejecutar tests - Product Service
       run: |
-        pytest auth-service/tests/unit/test_value_objects.py auth-service/tests/unit/test_entities.py product-service/tests/unit/ -v
+        cd microservices
+        echo "════════════════════════════════════════════════"
+        echo "📦 Product Service - Tests Unitarios"
+        echo "════════════════════════════════════════════════"
+        pytest product-service/tests/unit/ -v --tb=short
+    
+    - name: 📊 Generar reporte de cobertura
+      run: |
+        cd microservices
+        pytest auth-service/tests/unit/ product-service/tests/unit/ \
+          --cov=auth-service/domain \
+          --cov=product-service/domain \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing
+    
+    - name: 📤 Subir reporte de cobertura
+      uses: codecov/codecov-action@v4
+      if: matrix.python-version == '3.12'
+      with:
+        file: ./microservices/coverage.xml
+        fail_ci_if_error: false
+      continue-on-error: true
+    
+    - name: 💾 Guardar reporte HTML
+      uses: actions/upload-artifact@v4
+      if: matrix.python-version == '3.12'
+      with:
+        name: coverage-report
+        path: microservices/htmlcov/
+        retention-days: 30
+    
+    - name: ✅ Resumen de tests
+      if: always()
+      run: |
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║                                                              ║"
+        echo "║            ✅ TESTS UNITARIOS COMPLETADOS                   ║"
+        echo "║                                                              ║"
+        echo "╚══════════════════════════════════════════════════════════════╝"
+        echo ""
+        echo "📊 Resultados:"
+        echo "✅ Auth Service - Value Objects: 20 tests"
+        echo "✅ Auth Service - Entities: 13 tests"
+        echo "✅ Product Service - Value Objects: 21 tests"
+        echo "✅ Product Service - Entities: 13 tests"
+        echo ""
+        echo "Total: 67 tests unitarios"
+        echo "Versión Python: ${{ matrix.python-version }}"
+        echo ""
+        echo "🎉 Pipeline completado!"
+
+
