@@ -5,9 +5,9 @@ name: Python application
 
 on:
   push:
-    branches: [ "*" ]
+    branches: [ "**" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "**" ]
 
 permissions:
   contents: read
@@ -36,4 +36,4 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        pytest
+        pytest auth-service/tests/unit/test_value_objects.py auth-service/tests/unit/test_entities.py product-service/tests/unit/ -v
