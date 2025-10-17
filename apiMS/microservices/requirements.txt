@@ -9,9 +9,8 @@ pyjwt==2.8.0
 python-multipart==0.0.6
 # Email dependencies
 fastapi-mail==1.4.1
-aiosmtplib==3.0.1
+aiosmtplib>=2.0,<3.0
 jinja2==3.1.2
 httpx==0.25.2
 # Redis for code storage (optional, can use database)
 redis==5.0.1
-
