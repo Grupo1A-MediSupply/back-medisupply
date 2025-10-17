@@ -38,9 +38,43 @@ class AuthServiceSettings(BaseSettings):
         env="ALLOWED_ORIGINS"
     )
     
+    # Email Configuration
+    mail_username: str = Field(
+        default="your-email@gmail.com",
+        env="MAIL_USERNAME"
+    )
+    mail_password: str = Field(
+        default="your-app-password",
+        env="MAIL_PASSWORD"
+    )
+    mail_from: str = Field(
+        default="your-email@gmail.com",
+        env="MAIL_FROM"
+    )
+    mail_from_name: str = Field(
+        default="MediSupply Auth",
+        env="MAIL_FROM_NAME"
+    )
+    mail_port: int = Field(default=587, env="MAIL_PORT")
+    mail_server: str = Field(default="smtp.gmail.com", env="MAIL_SERVER")
+    mail_starttls: bool = Field(default=True, env="MAIL_STARTTLS")
+    mail_ssl_tls: bool = Field(default=False, env="MAIL_SSL_TLS")
+    mail_use_credentials: bool = Field(default=True, env="MAIL_USE_CREDENTIALS")
+    
+    # Verification Code
+    verification_code_expire_minutes: int = Field(
+        default=5,
+        env="VERIFICATION_CODE_EXPIRE_MINUTES"
+    )
+    verification_code_length: int = Field(
+        default=6,
+        env="VERIFICATION_CODE_LENGTH"
+    )
+    
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "allow"
 
 
 # Instancia global

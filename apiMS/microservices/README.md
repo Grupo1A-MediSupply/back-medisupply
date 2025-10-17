@@ -33,18 +33,23 @@ Sistema de microservicios implementado con **Arquitectura Hexagonal** (Ports & A
 Microservicio de autenticación y gestión de usuarios.
 
 **Responsabilidades:**
-- Registro de usuarios
-- Autenticación (login)
+- Registro de usuarios con validación de email y username
+- Autenticación con verificación por código de email
 - Gestión de tokens JWT (access & refresh)
-- Verificación de tokens
-- Gestión de perfiles de usuario
+- Verificación de tokens y códigos de autenticación
+- Gestión de perfiles de usuario (nombre, teléfono)
+- Cambio de contraseñas
+- Activación/desactivación de usuarios
 
 **Endpoints principales:**
 - `POST /api/v1/auth/register` - Registrar usuario
-- `POST /api/v1/auth/login` - Iniciar sesión
+- `POST /api/v1/auth/login` - Iniciar sesión (envía código por email)
+- `POST /api/v1/auth/verify-code` - Verificar código de autenticación
 - `POST /api/v1/auth/refresh` - Refrescar token
-- `GET /api/v1/auth/me` - Obtener perfil
+- `GET /api/v1/auth/me` - Obtener perfil actual
 - `GET /api/v1/auth/verify` - Verificar token
+- `PUT /api/v1/auth/profile` - Actualizar perfil
+- `PUT /api/v1/auth/change-password` - Cambiar contraseña
 
 ### 2. Product Service (Puerto 8002)
 
@@ -77,25 +82,36 @@ microservices/
 ├── auth-service/                    # Microservicio de autenticación
 │   ├── domain/                     # Capa de dominio
 │   │   ├── entities/               # Entidades (User)
-│   │   ├── value_objects/          # Value objects (Username, Password)
-│   │   ├── events/                 # Eventos de dominio
+│   │   ├── value_objects/          # Value objects (Username, Password, PhoneNumber)
+│   │   ├── events/                 # Eventos de dominio (UserRegistered, UserLoggedIn)
 │   │   └── ports/                  # Puertos (interfaces)
 │   │
 │   ├── application/                # Capa de aplicación
-│   │   ├── commands/               # Comandos (RegisterUser, Login)
-│   │   ├── queries/                # Queries (GetUser, VerifyToken)
+│   │   ├── commands/               # Comandos (RegisterUser, Login, VerifyCode)
+│   │   ├── queries/                # Queries (GetUser, VerifyToken, GetCurrentUser)
 │   │   ├── handlers/               # Handlers para comandos/queries
 │   │   └── services/               # Event handlers
 │   │
 │   ├── infrastructure/             # Capa de infraestructura
 │   │   ├── adapters/               # Adaptadores (JWT, Password Hasher)
 │   │   ├── repositories/           # Repositorios (SQLAlchemy)
+│   │   ├── email_service.py        # Servicio de email
+│   │   ├── verification_code_repository.py  # Repositorio de códigos
 │   │   ├── config.py               # Configuración
 │   │   └── database.py             # Setup de base de datos
 │   │
 │   ├── api/                        # Capa de API REST
 │   │   ├── routes/                 # Rutas de FastAPI
 │   │   └── dependencies/           # Inyección de dependencias
+│   │
+│   ├── tests/                      # Tests unitarios
+│   │   ├── unit/                   # Tests unitarios
+│   │   │   ├── test_entities.py    # Tests de entidades
+│   │   │   ├── test_value_objects.py # Tests de value objects
+│   │   │   ├── test_command_handlers.py # Tests de command handlers
+│   │   │   ├── test_query_handlers.py # Tests de query handlers
+│   │   │   └── test_domain_events.py # Tests de eventos de dominio
+│   │   └── conftest.py             # Fixtures de pytest
 │   │
 │   ├── main.py                     # Aplicación principal
 │   ├── run.py                      # Script de ejecución
@@ -366,11 +382,13 @@ curl -X POST http://localhost:8001/api/v1/auth/register \
     "email": "user@example.com",
     "username": "testuser",
     "password": "SecurePass123!",
-    "full_name": "Test User"
+    "confirm_password": "SecurePass123!",
+    "full_name": "Test User",
+    "phone_number": "+1234567890"
   }'
 ```
 
-### Login
+### Login (envía código por email)
 
 ```bash
 curl -X POST http://localhost:8001/api/v1/auth/login \
@@ -378,6 +396,41 @@ curl -X POST http://localhost:8001/api/v1/auth/login \
   -d '{
     "username": "testuser",
     "password": "SecurePass123!"
+  }'
+```
+
+### Verificar Código de Autenticación
+
+```bash
+curl -X POST http://localhost:8001/api/v1/auth/verify-code \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-uuid-here",
+    "code": "123456"
+  }'
+```
+
+### Actualizar Perfil
+
+```bash
+curl -X PUT http://localhost:8001/api/v1/auth/profile \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-jwt-token" \
+  -d '{
+    "full_name": "Updated Name",
+    "phone_number": "+0987654321"
+  }'
+```
+
+### Cambiar Contraseña
+
+```bash
+curl -X PUT http://localhost:8001/api/v1/auth/change-password \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-jwt-token" \
+  -d '{
+    "old_password": "OldPass123!",
+    "new_password": "NewPass123!"
   }'
 ```
 
@@ -400,10 +453,51 @@ curl -X POST http://localhost:8002/api/v1/products \
 curl -X GET http://localhost:8002/api/v1/products
 ```
 
+## 🧪 Testing
+
+### Ejecutar Tests Unitarios
+
+```bash
+# Ejecutar todos los tests
+cd auth-service
+python -m pytest tests/ -v
+
+# Ejecutar tests específicos
+python -m pytest tests/unit/test_entities.py -v
+python -m pytest tests/unit/test_command_handlers.py -v
+
+# Ejecutar con coverage
+python -m pytest tests/ --cov=domain --cov=application --cov-report=html
+```
+
+### Cobertura de Tests
+
+Los tests unitarios cubren:
+
+- **Entidades de Dominio:** User entity con todos sus métodos
+- **Value Objects:** Username, Email, HashedPassword, FullName, PhoneNumber
+- **Command Handlers:** RegisterUser, Login, RefreshToken, ChangePassword, etc.
+- **Query Handlers:** GetUserById, GetUserByUsername, VerifyToken, etc.
+- **Eventos de Dominio:** UserRegistered, UserLoggedIn, UserDeactivated, etc.
+
+### Estructura de Tests
+
+```
+tests/
+├── unit/
+│   ├── test_entities.py           # Tests de entidades
+│   ├── test_value_objects.py      # Tests de value objects
+│   ├── test_command_handlers.py   # Tests de command handlers
+│   ├── test_query_handlers.py     # Tests de query handlers
+│   └── test_domain_events.py      # Tests de eventos de dominio
+└── conftest.py                    # Fixtures compartidas
+```
+
 ## 🔐 Seguridad
 
 - **JWT Tokens:** Auth service genera tokens JWT para autenticación
 - **Password Hashing:** Bcrypt para hashear contraseñas
+- **Email Verification:** Códigos de verificación por email
 - **CORS:** Configurado para permitir orígenes específicos
 - **Validación:** Pydantic para validación de entrada
 

@@ -10,7 +10,10 @@ if shared_path not in sys.path:
     sys.path.insert(0, shared_path)
 
 from shared.domain.events import DomainEvent
-from ...domain.events import UserRegisteredEvent, UserLoggedInEvent, UserDeactivatedEvent
+try:
+    from ...domain.events import UserRegisteredEvent, UserLoggedInEvent, UserDeactivatedEvent
+except ImportError:
+    from domain.events import UserRegisteredEvent, UserLoggedInEvent, UserDeactivatedEvent
 
 
 class UserEventHandler:
