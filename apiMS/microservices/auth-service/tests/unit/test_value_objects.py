@@ -14,7 +14,7 @@ if shared_path not in sys.path:
     sys.path.insert(0, shared_path)
 
 from shared.domain.value_objects import Email, EntityId
-from domain.value_objects import Username, HashedPassword, FullName
+from domain.value_objects import Username, HashedPassword, FullName, PhoneNumber
 
 
 @pytest.mark.unit
@@ -150,4 +150,61 @@ class TestEntityId:
         # Puede usarse en set
         ids_set = {id1, id2}
         assert len(ids_set) == 1
+
+
+@pytest.mark.unit
+class TestPhoneNumber:
+    """Tests para el Value Object PhoneNumber"""
+    
+    def test_phone_number_valido(self):
+        """Test: PhoneNumber válido se crea correctamente"""
+        phone = PhoneNumber("+1234567890")
+        assert phone.value == "+1234567890"
+        assert str(phone) == "+1234567890"
+    
+    def test_phone_number_sin_prefijo(self):
+        """Test: PhoneNumber sin prefijo + es válido"""
+        phone = PhoneNumber("1234567890")
+        assert phone.value == "1234567890"
+    
+    def test_phone_number_con_espacios(self):
+        """Test: PhoneNumber con espacios es válido"""
+        phone = PhoneNumber("+1 234 567 890")
+        assert phone.value == "+1 234 567 890"
+    
+    def test_phone_number_con_guiones(self):
+        """Test: PhoneNumber con guiones es válido"""
+        phone = PhoneNumber("+1-234-567-890")
+        assert phone.value == "+1-234-567-890"
+    
+    def test_phone_number_con_parentesis(self):
+        """Test: PhoneNumber con paréntesis es válido"""
+        phone = PhoneNumber("+1 (234) 567-890")
+        assert phone.value == "+1 (234) 567-890"
+    
+    def test_phone_number_vacio(self):
+        """Test: PhoneNumber vacío lanza excepción"""
+        with pytest.raises(ValueError, match="no puede estar vacío"):
+            PhoneNumber("")
+    
+    def test_phone_number_muy_corto(self):
+        """Test: PhoneNumber menor a 7 caracteres lanza excepción"""
+        with pytest.raises(ValueError, match="formato del número de teléfono no es válido"):
+            PhoneNumber("123456")
+    
+    def test_phone_number_muy_largo(self):
+        """Test: PhoneNumber mayor a 15 caracteres lanza excepción"""
+        with pytest.raises(ValueError, match="formato del número de teléfono no es válido"):
+            PhoneNumber("+1234567890123456")
+    
+    def test_phone_number_con_caracteres_invalidos(self):
+        """Test: PhoneNumber con caracteres inválidos lanza excepción"""
+        with pytest.raises(ValueError, match="formato del número de teléfono no es válido"):
+            PhoneNumber("+123-abc-567")
+    
+    def test_phone_number_es_inmutable(self):
+        """Test: PhoneNumber es inmutable"""
+        phone = PhoneNumber("+1234567890")
+        with pytest.raises(AttributeError):
+            phone.value = "+0987654321"
 

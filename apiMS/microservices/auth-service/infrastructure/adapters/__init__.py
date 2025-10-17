@@ -13,7 +13,10 @@ shared_path = str(Path(__file__).parent.parent.parent.parent / "shared")
 if shared_path not in sys.path:
     sys.path.insert(0, shared_path)
 
-from ...domain.ports import IPasswordHasher, ITokenService
+try:
+    from ...domain.ports import IPasswordHasher, ITokenService
+except ImportError:
+    from domain.ports import IPasswordHasher, ITokenService
 
 
 class BcryptPasswordHasher(IPasswordHasher):
@@ -24,10 +27,20 @@ class BcryptPasswordHasher(IPasswordHasher):
     
     def hash_password(self, plain_password: str) -> str:
         """Hashear contraseña"""
+        # Truncar contraseña a 72 bytes máximo para compatibilidad con bcrypt
+        if len(plain_password.encode('utf-8')) > 72:
+            # Truncar a 72 bytes, no caracteres
+            password_bytes = plain_password.encode('utf-8')[:72]
+            plain_password = password_bytes.decode('utf-8', errors='ignore')
         return self.pwd_context.hash(plain_password)
     
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """Verificar contraseña"""
+        # Truncar contraseña a 72 bytes máximo para compatibilidad con bcrypt
+        if len(plain_password.encode('utf-8')) > 72:
+            # Truncar a 72 bytes, no caracteres
+            password_bytes = plain_password.encode('utf-8')[:72]
+            plain_password = password_bytes.decode('utf-8', errors='ignore')
         return self.pwd_context.verify(plain_password, hashed_password)
 
 

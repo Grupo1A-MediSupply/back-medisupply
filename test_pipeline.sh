@@ -2,6 +2,8 @@
 
 # 🧪 Script para probar el pipeline unit-tests.yml localmente
 # Este script simula los pasos del workflow de GitHub Actions
+# 
+# ACTUALIZADO: Incluye todos los tests del Auth Service (domain, application, infrastructure, api)
 
 set -e  # Salir si algún comando falla
 
@@ -36,8 +38,14 @@ echo ""
 # Paso 2: Auth Service Tests
 echo "🔐 PASO 2: Auth Service - Tests Unitarios"
 echo "════════════════════════════════════════════════"
-if pytest auth-service/tests/unit/test_value_objects.py auth-service/tests/unit/test_entities.py -q; then
-    echo "✅ Auth Service tests: 33 tests pasaron"
+echo "📋 Ejecutando todos los tests del Auth Service:"
+echo "   - Domain (entities, value_objects, events, ports)"
+echo "   - Application (commands, queries, handlers, services)"
+echo "   - Infrastructure (adapters, repositories, database, email)"
+echo "   - API (routes, dependencies)"
+echo ""
+if pytest auth-service/tests/unit/ -q; then
+    echo "✅ Auth Service tests: Todos los tests pasaron"
 else
     echo "❌ Auth Service tests: FALLARON"
     exit 1
@@ -61,8 +69,14 @@ echo "════════════════════════�
 
 # Generar cobertura para Auth Service
 echo "🔐 Generando cobertura Auth Service..."
-if pytest auth-service/tests/unit/test_value_objects.py auth-service/tests/unit/test_entities.py \
-    --cov=auth-service/domain \
+echo "📊 Analizando cobertura completa del Auth Service:"
+echo "   - Domain layer (entities, value_objects, events, ports)"
+echo "   - Application layer (commands, queries, handlers, services)"
+echo "   - Infrastructure layer (adapters, repositories, database, email)"
+echo "   - API layer (routes, dependencies)"
+echo ""
+if pytest auth-service/tests/unit/ \
+    --cov=auth-service \
     --cov-report=xml \
     --cov-report=html \
     --cov-report=term-missing \
@@ -100,12 +114,11 @@ echo "║                                                              ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 echo "📊 Resultados:"
-echo "✅ Auth Service - Value Objects: 20 tests"
-echo "✅ Auth Service - Entities: 13 tests"
+echo "✅ Auth Service - Tests completos (domain, application, infrastructure, api)"
 echo "✅ Product Service - Value Objects: 21 tests"
 echo "✅ Product Service - Entities: 13 tests"
 echo ""
-echo "Total: 67 tests unitarios"
+echo "Total: Tests unitarios completos del Auth Service + Product Service"
 echo "🐍 Versión Python: $(python --version)"
 echo ""
 echo "🎉 ¡Pipeline listo para GitHub Actions!"

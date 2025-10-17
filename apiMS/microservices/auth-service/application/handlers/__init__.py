@@ -13,18 +13,34 @@ if shared_path not in sys.path:
 
 from shared.domain.value_objects import EntityId, Email
 from shared.domain.events import event_bus
-from ..commands import (
-    RegisterUserCommand, LoginCommand, RefreshTokenCommand,
-    ChangePasswordCommand, DeactivateUserCommand, UpdateProfileCommand
-)
-from ..queries import (
-    GetUserByIdQuery, GetUserByUsernameQuery, GetUserByEmailQuery,
-    VerifyTokenQuery, GetCurrentUserQuery
-)
-from ...domain.entities import User
-from ...domain.value_objects import Username, HashedPassword, FullName
-from ...domain.ports import IUserRepository, IPasswordHasher, ITokenService
-from ...domain.events import TokenRefreshedEvent
+try:
+    from ..commands import (
+        RegisterUserCommand, LoginCommand, RefreshTokenCommand,
+        ChangePasswordCommand, DeactivateUserCommand, UpdateProfileCommand,
+        VerifyCodeCommand
+    )
+    from ..queries import (
+        GetUserByIdQuery, GetUserByUsernameQuery, GetUserByEmailQuery,
+        VerifyTokenQuery, GetCurrentUserQuery
+    )
+    from ...domain.entities import User
+    from ...domain.value_objects import Username, HashedPassword, FullName, PhoneNumber
+    from ...domain.ports import IUserRepository, IPasswordHasher, ITokenService
+    from ...domain.events import TokenRefreshedEvent
+except ImportError:
+    from application.commands import (
+        RegisterUserCommand, LoginCommand, RefreshTokenCommand,
+        ChangePasswordCommand, DeactivateUserCommand, UpdateProfileCommand,
+        VerifyCodeCommand
+    )
+    from application.queries import (
+        GetUserByIdQuery, GetUserByUsernameQuery, GetUserByEmailQuery,
+        VerifyTokenQuery, GetCurrentUserQuery
+    )
+    from domain.entities import User
+    from domain.value_objects import Username, HashedPassword, FullName, PhoneNumber
+    from domain.ports import IUserRepository, IPasswordHasher, ITokenService
+    from domain.events import TokenRefreshedEvent
 
 
 class RegisterUserCommandHandler:
@@ -40,6 +56,10 @@ class RegisterUserCommandHandler:
     
     async def handle(self, command: RegisterUserCommand) -> User:
         """Manejar comando de registro de usuario"""
+        # Validar confirmación de contraseña
+        if command.password != command.confirm_password:
+            raise ValueError("Las contraseñas no coinciden")
+        
         # Validar que no exista el usuario
         username = Username(command.username)
         email = Email(command.email)
@@ -62,6 +82,7 @@ class RegisterUserCommandHandler:
             username=username,
             hashed_password=hashed_password,
             full_name=FullName(command.full_name) if command.full_name else None,
+            phone_number=PhoneNumber(command.phone_number) if command.phone_number else None,
             is_active=command.is_active,
             is_superuser=command.is_superuser
         )
@@ -85,66 +106,84 @@ class LoginCommandHandler:
         self,
         user_repository: IUserRepository,
         password_hasher: IPasswordHasher,
-        token_service: ITokenService
+        verification_code_repository,
+        email_service
     ):
         self.user_repository = user_repository
         self.password_hasher = password_hasher
-        self.token_service = token_service
+        self.verification_code_repository = verification_code_repository
+        self.email_service = email_service
     
     async def handle(self, command: LoginCommand) -> dict:
         """Manejar comando de login"""
-        # Buscar usuario por username o email
-        username = Username(command.username)
-        user = await self.user_repository.find_by_username(username)
-        
-        if not user:
-            # Intentar con email
-            try:
-                email = Email(command.username)
-                user = await self.user_repository.find_by_email(email)
-            except ValueError:
-                pass
-        
-        if not user:
-            raise ValueError("Credenciales incorrectas")
-        
-        # Verificar contraseña
-        if not self.password_hasher.verify_password(
-            command.password,
-            str(user.hashed_password)
-        ):
-            raise ValueError("Credenciales incorrectas")
-        
-        # Verificar que el usuario esté activo
-        if not user.is_active:
-            raise ValueError("Usuario desactivado")
-        
-        # Registrar evento de login
-        user.login()
-        
-        # Publicar eventos
-        for event in user.get_domain_events():
-            await event_bus.publish(event)
-        
-        user.clear_domain_events()
-        
-        # Crear tokens
-        access_token = self.token_service.create_access_token(
-            user_id=str(user.id),
-            username=str(user.username),
-            scopes=["read", "write"]
-        )
-        
-        refresh_token = self.token_service.create_refresh_token(
-            user_id=str(user.id),
-            username=str(user.username)
-        )
-        
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer"
-        }
+        try:
+            # Buscar usuario por username o email
+            username = Username(command.username)
+            user = await self.user_repository.find_by_username(username)
+            
+            if not user:
+                # Intentar con email
+                try:
+                    email = Email(command.username)
+                    user = await self.user_repository.find_by_email(email)
+                except ValueError:
+                    pass
+            
+            if not user:
+                raise ValueError("Credenciales incorrectas")
+            
+            # Verificar contraseña
+            if not self.password_hasher.verify_password(
+                command.password,
+                str(user.hashed_password)
+            ):
+                raise ValueError("Credenciales incorrectas")
+            
+            # Verificar que el usuario esté activo
+            if not user.is_active:
+                raise ValueError("Usuario desactivado")
+            
+            # Registrar evento de login
+            user.login()
+            
+            # Publicar eventos
+            for event in user.get_domain_events():
+                await event_bus.publish(event)
+            
+            user.clear_domain_events()
+            
+            # Generar código de verificación
+            verification_code = self.email_service.generate_verification_code()
+            
+            # Guardar código en la base de datos
+            verification_code_model = await self.verification_code_repository.create_verification_code(
+                user_id=str(user.id),
+                email=str(user.email),
+                code=verification_code
+            )
+            
+            # Enviar código por email
+            email_sent = await self.email_service.send_verification_code(
+                email=str(user.email),
+                username=str(user.username),
+                code=verification_code
+            )
+            
+            if not email_sent:
+                raise ValueError("Error enviando código de verificación")
+            
+            # Hacer commit de la transacción
+            self.verification_code_repository.db.commit()
+            
+            return {
+                "message": "Código de verificación enviado al email",
+                "user_id": str(user.id),
+                "email": str(user.email),
+                "requires_verification": True
+            }
+        except Exception as e:
+            print(f"Error en LoginCommandHandler: {e}")
+            raise
 
 
 class RefreshTokenCommandHandler:
@@ -275,7 +314,8 @@ class UpdateProfileCommandHandler:
         
         # Actualizar perfil
         full_name = FullName(command.full_name) if command.full_name else None
-        user.update_profile(full_name=full_name)
+        phone_number = PhoneNumber(command.phone_number) if command.phone_number else None
+        user.update_profile(full_name=full_name, phone_number=phone_number)
         
         # Guardar usuario
         user = await self.user_repository.save(user)
@@ -361,4 +401,47 @@ class VerifyTokenQueryHandler:
                 "valid": False,
                 "error": str(e)
             }
+
+
+class VerifyCodeCommandHandler:
+    """Handler para el comando VerifyCode"""
+    
+    def __init__(
+        self,
+        verification_code_repository,
+        token_service: ITokenService
+    ):
+        self.verification_code_repository = verification_code_repository
+        self.token_service = token_service
+    
+    async def handle(self, command: VerifyCodeCommand) -> dict:
+        """Manejar comando de verificación de código"""
+        # Buscar código válido
+        verification_code = await self.verification_code_repository.get_valid_code(
+            command.user_id, command.code
+        )
+        
+        if not verification_code:
+            raise ValueError("Código inválido o expirado")
+        
+        # Marcar código como usado
+        await self.verification_code_repository.mark_code_as_used(verification_code)
+        
+        # Generar tokens de acceso
+        access_token = self.token_service.create_access_token(
+            user_id=verification_code.user_id,
+            username="",  # No tenemos username aquí, se puede obtener del usuario si es necesario
+            scopes=["read", "write"]
+        )
+        
+        refresh_token = self.token_service.create_refresh_token(
+            user_id=verification_code.user_id,
+            username=""  # No tenemos username aquí, se puede obtener del usuario si es necesario
+        )
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer"
+        }
 

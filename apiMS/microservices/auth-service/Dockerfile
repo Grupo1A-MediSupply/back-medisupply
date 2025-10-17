@@ -21,5 +21,5 @@ COPY auth-service/ .
 EXPOSE 8001
 
 # Comando para ejecutar la aplicación
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+CMD ["python", "start.py"]
 

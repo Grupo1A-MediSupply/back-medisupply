@@ -14,7 +14,7 @@ if shared_path not in sys.path:
     sys.path.insert(0, shared_path)
 
 from shared.domain.value_objects import EntityId, Email
-from domain.value_objects import Username, HashedPassword, FullName
+from domain.value_objects import Username, HashedPassword, FullName, PhoneNumber
 from domain.entities import User
 from domain.events import UserRegisteredEvent, UserLoggedInEvent, UserDeactivatedEvent
 
@@ -31,6 +31,7 @@ class TestUserEntity:
             username=Username("testuser"),
             hashed_password=HashedPassword("$2b$12$hash"),
             full_name=FullName("Test User"),
+            phone_number=PhoneNumber("+1234567890"),
             is_active=True,
             is_superuser=False
         )
@@ -38,6 +39,8 @@ class TestUserEntity:
         assert str(user.id) == "123"
         assert str(user.email) == "test@example.com"
         assert str(user.username) == "testuser"
+        assert str(user.full_name) == "Test User"
+        assert str(user.phone_number) == "+1234567890"
         assert user.is_active is True
         assert user.is_superuser is False
     
@@ -167,19 +170,58 @@ class TestUserEntity:
         assert str(user.hashed_password) == "$2b$12$new_hash"
     
     def test_update_profile(self):
-        """Test: Actualizar perfil cambia nombre"""
+        """Test: Actualizar perfil cambia nombre y teléfono"""
         user = User(
             user_id=EntityId("123"),
             email=Email("test@example.com"),
             username=Username("testuser"),
             hashed_password=HashedPassword("$2b$12$hash"),
             full_name=FullName("Old Name"),
+            phone_number=PhoneNumber("+1111111111"),
+            is_active=True
+        )
+        
+        user.update_profile(
+            full_name=FullName("New Name"),
+            phone_number=PhoneNumber("+2222222222")
+        )
+        
+        assert str(user.full_name) == "New Name"
+        assert str(user.phone_number) == "+2222222222"
+    
+    def test_update_profile_solo_nombre(self):
+        """Test: Actualizar perfil solo con nombre"""
+        user = User(
+            user_id=EntityId("123"),
+            email=Email("test@example.com"),
+            username=Username("testuser"),
+            hashed_password=HashedPassword("$2b$12$hash"),
+            full_name=FullName("Old Name"),
+            phone_number=PhoneNumber("+1111111111"),
             is_active=True
         )
         
         user.update_profile(full_name=FullName("New Name"))
         
         assert str(user.full_name) == "New Name"
+        assert str(user.phone_number) == "+1111111111"  # No cambia
+    
+    def test_update_profile_solo_telefono(self):
+        """Test: Actualizar perfil solo con teléfono"""
+        user = User(
+            user_id=EntityId("123"),
+            email=Email("test@example.com"),
+            username=Username("testuser"),
+            hashed_password=HashedPassword("$2b$12$hash"),
+            full_name=FullName("Old Name"),
+            phone_number=PhoneNumber("+1111111111"),
+            is_active=True
+        )
+        
+        user.update_profile(phone_number=PhoneNumber("+2222222222"))
+        
+        assert str(user.full_name) == "Old Name"  # No cambia
+        assert str(user.phone_number) == "+2222222222"
     
     def test_clear_domain_events(self):
         """Test: Clear limpia los eventos de dominio"""
