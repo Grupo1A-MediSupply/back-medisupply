@@ -99,10 +99,25 @@ jobs:
       run: terraform apply -auto-approve tfplan
       working-directory: terraform/
     
+    - name: 📊 Mostrar outputs de Terraform
+      run: |
+        echo "📋 Terraform Outputs:"
+        echo "===================="
+        terraform output || echo "No outputs available yet"
+      working-directory: terraform/
+    
     - name: 📝 Output ECS Service URL
       run: |
         echo "ECS Service deployed successfully!"
-        terraform output -json | jq -r '.ecs_service_url.value' >> $GITHUB_OUTPUT
+        # Verificar si el output existe antes de intentar obtenerlo
+        if terraform output ecs_service_url > /dev/null 2>&1; then
+          ECS_URL=$(terraform output -raw ecs_service_url)
+          echo "ECS Service URL: $ECS_URL"
+          echo "ecs_service_url=$ECS_URL" >> $GITHUB_OUTPUT
+        else
+          echo "Warning: ECS service URL not available yet"
+          echo "ecs_service_url=not-available" >> $GITHUB_OUTPUT
+        fi
       working-directory: terraform/
 
   build-and-push:
