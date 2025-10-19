@@ -163,6 +163,15 @@ jobs:
           terraform import aws_security_group.ecs_tasks $ECS_SG_ID 2>/dev/null || echo "ECS Security Group no necesita importación"
         fi
         
+        # Importar ECS Service
+        echo "🚀 Importando ECS Service..."
+        ECS_SERVICE_ARN=$(aws ecs list-services --cluster medisupply-cluster --query 'serviceArns[0]' --output text 2>/dev/null || echo "")
+        if [ -n "$ECS_SERVICE_ARN" ] && [ "$ECS_SERVICE_ARN" != "None" ]; then
+          # Extraer el nombre del servicio del ARN
+          ECS_SERVICE_NAME=$(echo $ECS_SERVICE_ARN | cut -d'/' -f3)
+          terraform import aws_ecs_service.main medisupply-cluster/$ECS_SERVICE_NAME 2>/dev/null || echo "ECS Service no necesita importación"
+        fi
+        
         echo "✅ Importación completada"
       working-directory: terraform/
       continue-on-error: true
