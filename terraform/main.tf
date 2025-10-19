@@ -28,12 +28,9 @@ data "aws_availability_zones" "available" {
 
 data "aws_caller_identity" "current" {}
 
-# Usar VPC existente en lugar de crear una nueva
+# Usar VPC existente específico
 data "aws_vpc" "existing" {
-  filter {
-    name   = "tag:Name"
-    values = ["medisupply-vpc"]
-  }
+  id = "vpc-05119ba31240eb9bd"  # VPC específico de medisupply-vpc
 }
 
 # Usar la VPC existente
