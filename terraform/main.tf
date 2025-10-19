@@ -28,62 +28,79 @@ data "aws_availability_zones" "available" {
 
 data "aws_caller_identity" "current" {}
 
-# VPC
-resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_hostnames = true
-  enable_dns_support   = true
+# Usar VPC existente en lugar de crear una nueva
+data "aws_vpc" "existing" {
+  filter {
+    name   = "tag:Name"
+    values = ["medisupply-vpc"]
+  }
+  
+  # Si no encuentra la VPC con el tag, usar la primera disponible
+  most_recent = true
+}
 
-  tags = {
-    Name = "${var.project_name}-vpc"
+# Usar la VPC existente
+locals {
+  vpc_id = data.aws_vpc.existing.id
+}
+
+# Usar Internet Gateway existente
+data "aws_internet_gateway" "existing" {
+  filter {
+    name   = "attachment.vpc-id"
+    values = [local.vpc_id]
   }
 }
 
-# Internet Gateway
-resource "aws_internet_gateway" "main" {
-  vpc_id = aws_vpc.main.id
-
-  tags = {
-    Name = "${var.project_name}-igw"
+# Usar subnets existentes
+data "aws_subnets" "public" {
+  filter {
+    name   = "vpc-id"
+    values = [local.vpc_id]
+  }
+  
+  filter {
+    name   = "tag:Name"
+    values = ["medisupply-public-subnet-*"]
   }
 }
 
-# Subnets públicas
-resource "aws_subnet" "public" {
-  count = 2
-
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.${count.index + 1}.0/24"
-  availability_zone       = data.aws_availability_zones.available.names[count.index]
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "${var.project_name}-public-subnet-${count.index + 1}"
-    Type = "Public"
+data "aws_subnets" "private" {
+  filter {
+    name   = "vpc-id"
+    values = [local.vpc_id]
+  }
+  
+  filter {
+    name   = "tag:Name"
+    values = ["medisupply-private-subnet-*"]
   }
 }
 
-# Subnets privadas
-resource "aws_subnet" "private" {
-  count = 2
+# Obtener las subnets específicas
+data "aws_subnet" "public_1" {
+  id = "subnet-0adf58bad0bee883a"  # medisupply-public-subnet-1
+}
 
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.${count.index + 10}.0/24"
-  availability_zone = data.aws_availability_zones.available.names[count.index]
+data "aws_subnet" "public_2" {
+  id = "subnet-0eb32061dde9cae3f"  # medisupply-public-subnet-2
+}
 
-  tags = {
-    Name = "${var.project_name}-private-subnet-${count.index + 1}"
-    Type = "Private"
-  }
+data "aws_subnet" "private_1" {
+  id = "subnet-049da45f812240c7a"  # medisupply-private-subnet-1
+}
+
+data "aws_subnet" "private_2" {
+  id = "subnet-013d7e1488da139f5"  # medisupply-private-subnet-2
 }
 
 # Route table para subnets públicas
 resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.main.id
+  vpc_id = local.vpc_id
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main.id
+    gateway_id = data.aws_internet_gateway.existing.id
   }
 
   tags = {
@@ -95,7 +112,7 @@ resource "aws_route_table" "public" {
 resource "aws_route_table_association" "public" {
   count = 2
 
-  subnet_id      = aws_subnet.public[count.index].id
+  subnet_id      = count.index == 0 ? data.aws_subnet.public_1.id : data.aws_subnet.public_2.id
   route_table_id = aws_route_table.public.id
 }
 
@@ -160,7 +177,7 @@ resource "aws_lb" "main" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
-  subnets            = aws_subnet.public[*].id
+  subnets            = [data.aws_subnet.public_1.id, data.aws_subnet.public_2.id]
 
   enable_deletion_protection = false
 
@@ -376,7 +393,7 @@ resource "aws_ecs_service" "main" {
 
   network_configuration {
     security_groups  = [aws_security_group.ecs_tasks.id]
-    subnets          = aws_subnet.private[*].id
+    subnets          = [data.aws_subnet.private_1.id, data.aws_subnet.private_2.id]
     assign_public_ip = false
   }
 
