@@ -7,18 +7,11 @@ terraform {
       version = "~> 5.0"
     }
   }
-  
-  # Backend para almacenar el estado (opcional, usar S3)
-  # backend "s3" {
-  #   bucket = "medisupply-terraform-state"
-  #   key    = "ecs/terraform.tfstate"
-  #   region = "us-east-1"
-  # }
 }
 
 provider "aws" {
   region = var.aws_region
-  
+
   default_tags {
     tags = {
       Project     = "medisupply"
@@ -104,55 +97,6 @@ resource "aws_route_table_association" "public" {
 
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
-}
-
-# NAT Gateway para subnets privadas
-resource "aws_eip" "nat" {
-  count = 2
-
-  domain = "vpc"
-  depends_on = [aws_internet_gateway.main]
-
-  tags = {
-    Name = "${var.project_name}-nat-eip-${count.index + 1}"
-  }
-}
-
-resource "aws_nat_gateway" "main" {
-  count = 2
-
-  allocation_id = aws_eip.nat[count.index].id
-  subnet_id     = aws_subnet.public[count.index].id
-
-  tags = {
-    Name = "${var.project_name}-nat-gateway-${count.index + 1}"
-  }
-
-  depends_on = [aws_internet_gateway.main]
-}
-
-# Route table para subnets privadas
-resource "aws_route_table" "private" {
-  count = 2
-
-  vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.main[count.index].id
-  }
-
-  tags = {
-    Name = "${var.project_name}-private-rt-${count.index + 1}"
-  }
-}
-
-# Asociar subnets privadas con route table
-resource "aws_route_table_association" "private" {
-  count = 2
-
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private[count.index].id
 }
 
 # Security Group para ALB
@@ -371,18 +315,18 @@ resource "aws_cloudwatch_log_group" "main" {
 resource "aws_ecs_task_definition" "main" {
   family                   = "${var.project_name}-task"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
-  task_role_arn           = aws_iam_role.ecs_task_role.arn
-  network_mode            = "awsvpc"
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
+  network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                     = var.fargate_cpu
-  memory                  = var.fargate_memory
+  cpu                      = var.fargate_cpu
+  memory                   = var.fargate_memory
 
   container_definitions = jsonencode([
     {
-      name  = var.container_name
-      image = "${aws_ecr_repository.auth_service.repository_url}:latest"
+      name      = var.container_name
+      image     = "${aws_ecr_repository.auth_service.repository_url}:latest"
       essential = true
-      
+
       portMappings = [
         {
           containerPort = var.container_port
