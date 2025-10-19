@@ -12,7 +12,7 @@ output "ecs_service_name" {
 
 output "ecs_service_url" {
   description = "URL of the ECS service"
-  value       = "http://${aws_lb.main.dns_name}"
+  value       = aws_lb.main.dns_name != null ? "http://${aws_lb.main.dns_name}" : null
 }
 
 output "alb_dns_name" {
