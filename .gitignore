@@ -176,3 +176,8 @@ codigoV3/
 # Documentation files - ignore all .md files except README.md
 *.md
 !README.md
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
