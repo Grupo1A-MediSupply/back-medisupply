@@ -16,13 +16,12 @@ env:
   CONTAINER_NAME: medisupply-container
 
 jobs:
-  # Job para tests y build
-
-  # Job para build y push de imágenes Docker
+    # Job para tests y build
+ 
   build-and-push:
     name: 🐳 Build & Push Docker Images
     runs-on: ubuntu-latest
-
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' == 'refs/heads/feature/pipeline'
     
     strategy:
       matrix:
@@ -66,6 +65,7 @@ jobs:
     name: 🏗️ Deploy Infrastructure with Terraform
     runs-on: ubuntu-latest
     needs: [build-and-push]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' == 'refs/heads/feature/pipeline'
     
     steps:
     - name: 📥 Checkout código
@@ -114,6 +114,7 @@ jobs:
     name: 🔄 Update ECS Service
     runs-on: ubuntu-latest
     needs: [deploy-infrastructure]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' == 'refs/heads/feature/pipeline'
     
     steps:
     - name: 🔐 Configurar AWS credentials
