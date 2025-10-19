@@ -30,7 +30,7 @@ data "aws_caller_identity" "current" {}
 
 # Usar VPC existente específico
 data "aws_vpc" "existing" {
-  id = "vpc-05119ba31240eb9bd"  # VPC específico de medisupply-vpc
+  id = "vpc-05119ba31240eb9bd" # VPC específico de medisupply-vpc
 }
 
 # Usar la VPC existente
@@ -52,7 +52,7 @@ data "aws_subnets" "public" {
     name   = "vpc-id"
     values = [local.vpc_id]
   }
-  
+
   filter {
     name   = "tag:Name"
     values = ["medisupply-public-subnet-*"]
@@ -64,7 +64,7 @@ data "aws_subnets" "private" {
     name   = "vpc-id"
     values = [local.vpc_id]
   }
-  
+
   filter {
     name   = "tag:Name"
     values = ["medisupply-private-subnet-*"]
@@ -73,19 +73,19 @@ data "aws_subnets" "private" {
 
 # Obtener las subnets específicas
 data "aws_subnet" "public_1" {
-  id = "subnet-0adf58bad0bee883a"  # medisupply-public-subnet-1
+  id = "subnet-0adf58bad0bee883a" # medisupply-public-subnet-1
 }
 
 data "aws_subnet" "public_2" {
-  id = "subnet-0eb32061dde9cae3f"  # medisupply-public-subnet-2
+  id = "subnet-0eb32061dde9cae3f" # medisupply-public-subnet-2
 }
 
 data "aws_subnet" "private_1" {
-  id = "subnet-049da45f812240c7a"  # medisupply-private-subnet-1
+  id = "subnet-049da45f812240c7a" # medisupply-private-subnet-1
 }
 
 data "aws_subnet" "private_2" {
-  id = "subnet-013d7e1488da139f5"  # medisupply-private-subnet-2
+  id = "subnet-013d7e1488da139f5" # medisupply-private-subnet-2
 }
 
 # Route table para subnets públicas
