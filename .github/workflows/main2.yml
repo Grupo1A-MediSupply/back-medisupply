@@ -91,14 +91,35 @@ jobs:
       run: terraform validate
       working-directory: terraform/
     
+    - name: 🔍 Verificar estado de Terraform
+      run: |
+        echo "🔍 Verificando estado de Terraform..."
+        terraform workspace list || echo "No hay workspaces"
+        terraform state list || echo "Estado vacío o no inicializado"
+        echo "✅ Verificación completada"
+      working-directory: terraform/
+    
     - name: 📊 Terraform Plan
-      run: terraform plan -out=tfplan
+      run: |
+        echo "📊 Ejecutando Terraform Plan..."
+        set -e  # Salir en caso de error
+        terraform plan -out=tfplan
+        echo "✅ Terraform Plan completado exitosamente"
+        
+        # Mostrar resumen del plan
+        echo "📋 Resumen del Plan:"
+        terraform show -no-color tfplan | grep -E "(Plan:|No changes|to add|to change|to destroy)" || echo "No se pudo obtener resumen del plan"
       working-directory: terraform/
     
     - name: 🔄 Importar recursos existentes (si es necesario)
       run: |
         echo "🔄 Intentando importar recursos existentes..."
-        # Intentar importar recursos que podrían existir
+        # Importar IAM Roles existentes
+        echo "Importando IAM Roles..."
+        terraform import aws_iam_role.ecs_task_execution_role medisupply-ecs-task-execution-role 2>/dev/null || echo "IAM Role ecs_task_execution_role no necesita importación"
+        terraform import aws_iam_role.ecs_task_role medisupply-ecs-task-role 2>/dev/null || echo "IAM Role ecs_task_role no necesita importación"
+        
+        # Intentar importar otros recursos que podrían existir
         terraform import aws_ecr_repository.auth_service medisupply-auth-service 2>/dev/null || echo "ECR auth-service no necesita importación"
         terraform import aws_ecr_repository.product_service medisupply-product-service 2>/dev/null || echo "ECR product-service no necesita importación"
         terraform import aws_cloudwatch_log_group.main /ecs/medisupply 2>/dev/null || echo "CloudWatch Log Group no necesita importación"
@@ -109,13 +130,22 @@ jobs:
     - name: 🚀 Terraform Apply
       run: |
         echo "🚀 Aplicando cambios de Terraform..."
-        # Intentar apply normal primero
+        echo "📋 Plan a aplicar:"
+        terraform show -no-color tfplan | head -20
+        echo "..."
+        
+        # Aplicar el plan
         if terraform apply -auto-approve tfplan; then
           echo "✅ Terraform apply exitoso"
         else
           echo "⚠️ Apply falló, intentando con -replace para recursos problemáticos..."
           # Si falla, intentar con replace para recursos que podrían estar duplicados
-          terraform apply -auto-approve -replace=aws_lb.main -replace=aws_lb_target_group.main || echo "Replace falló, continuando..."
+          if terraform apply -auto-approve -replace=aws_lb.main -replace=aws_lb_target_group.main; then
+            echo "✅ Terraform apply con replace exitoso"
+          else
+            echo "❌ Terraform apply falló completamente"
+            exit 1
+          fi
         fi
       working-directory: terraform/
     
@@ -126,17 +156,63 @@ jobs:
         terraform output || echo "No outputs available yet"
       working-directory: terraform/
     
+    - name: ⏳ Esperar a que el Load Balancer se inicialice
+      run: |
+        echo "⏳ Esperando a que el Load Balancer se inicialice..."
+        # Esperar hasta 5 minutos para que el Load Balancer esté disponible
+        for i in {1..30}; do
+          ALB_DNS=$(aws elbv2 describe-load-balancers --names medisupply-alb --query 'LoadBalancers[0].DNSName' --output text 2>/dev/null || echo "")
+          if [ -n "$ALB_DNS" ] && [ "$ALB_DNS" != "None" ] && [ "$ALB_DNS" != "null" ]; then
+            echo "✅ Load Balancer DNS disponible: $ALB_DNS"
+            break
+          else
+            echo "⏳ Esperando... (intento $i/30)"
+            sleep 10
+          fi
+        done
+      working-directory: terraform/
+    
+    - name: 🔍 Verificar estado del Load Balancer
+      run: |
+        echo "🔍 Verificando estado del Load Balancer..."
+        # Verificar si el Load Balancer existe
+        ALB_ARN=$(aws elbv2 describe-load-balancers --names medisupply-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "")
+        if [ -n "$ALB_ARN" ] && [ "$ALB_ARN" != "None" ]; then
+          echo "✅ Load Balancer encontrado: $ALB_ARN"
+          # Obtener el DNS name
+          ALB_DNS=$(aws elbv2 describe-load-balancers --names medisupply-alb --query 'LoadBalancers[0].DNSName' --output text 2>/dev/null || echo "")
+          if [ -n "$ALB_DNS" ] && [ "$ALB_DNS" != "None" ]; then
+            echo "✅ DNS Name: $ALB_DNS"
+          else
+            echo "⚠️ DNS Name no disponible aún"
+          fi
+          # Verificar el estado
+          ALB_STATE=$(aws elbv2 describe-load-balancers --names medisupply-alb --query 'LoadBalancers[0].State.Code' --output text 2>/dev/null || echo "")
+          echo "📊 Estado del Load Balancer: $ALB_STATE"
+        else
+          echo "❌ Load Balancer no encontrado"
+        fi
+      working-directory: terraform/
+    
     - name: 📝 Output ECS Service URL
       run: |
         echo "ECS Service deployed successfully!"
-        # Verificar si el output existe antes de intentar obtenerlo
-        if terraform output ecs_service_url > /dev/null 2>&1; then
-          ECS_URL=$(terraform output -raw ecs_service_url)
+        # Verificar si el output existe y no es null
+        ECS_URL=$(terraform output -json | jq -r '.ecs_service_url.value // empty' 2>/dev/null || echo "")
+        if [ -n "$ECS_URL" ] && [ "$ECS_URL" != "null" ]; then
           echo "ECS Service URL: $ECS_URL"
           echo "ecs_service_url=$ECS_URL" >> $GITHUB_OUTPUT
         else
-          echo "Warning: ECS service URL not available yet"
-          echo "ecs_service_url=not-available" >> $GITHUB_OUTPUT
+          echo "Warning: ECS service URL not available yet (Load Balancer may still be initializing)"
+          # Intentar obtener el DNS name directamente del Load Balancer
+          ALB_DNS=$(aws elbv2 describe-load-balancers --names medisupply-alb --query 'LoadBalancers[0].DNSName' --output text 2>/dev/null || echo "")
+          if [ -n "$ALB_DNS" ] && [ "$ALB_DNS" != "None" ]; then
+            ECS_URL="http://$ALB_DNS"
+            echo "ECS Service URL (from AWS): $ECS_URL"
+            echo "ecs_service_url=$ECS_URL" >> $GITHUB_OUTPUT
+          else
+            echo "ecs_service_url=not-available" >> $GITHUB_OUTPUT
+          fi
         fi
       working-directory: terraform/
 
