@@ -80,7 +80,7 @@ jobs:
         terraform_version: 1.6.0
     
     - name: 🔍 Terraform Format Check
-      run: terraform fmt -check -recursive terraform/
+      run: terraform fmt -check -recursive .
       working-directory: terraform/
     
     - name: 🔍 Terraform Init
@@ -113,16 +113,56 @@ jobs:
     
     - name: 🔄 Importar recursos existentes (si es necesario)
       run: |
-        echo "🔄 Intentando importar recursos existentes..."
-        # Importar IAM Roles existentes
-        echo "Importando IAM Roles..."
+        echo "🔄 Importando recursos existentes..."
+        
+        # Importar ECR Repositories
+        echo "📦 Importando ECR Repositories..."
+        terraform import aws_ecr_repository.auth_service medisupply-auth-service 2>/dev/null || echo "ECR auth-service no necesita importación"
+        terraform import aws_ecr_repository.product_service medisupply-product-service 2>/dev/null || echo "ECR product-service no necesita importación"
+        
+        # Importar IAM Roles
+        echo "🔐 Importando IAM Roles..."
         terraform import aws_iam_role.ecs_task_execution_role medisupply-ecs-task-execution-role 2>/dev/null || echo "IAM Role ecs_task_execution_role no necesita importación"
         terraform import aws_iam_role.ecs_task_role medisupply-ecs-task-role 2>/dev/null || echo "IAM Role ecs_task_role no necesita importación"
         
-        # Intentar importar otros recursos que podrían existir
-        terraform import aws_ecr_repository.auth_service medisupply-auth-service 2>/dev/null || echo "ECR auth-service no necesita importación"
-        terraform import aws_ecr_repository.product_service medisupply-product-service 2>/dev/null || echo "ECR product-service no necesita importación"
+        # Importar CloudWatch Log Group
+        echo "📊 Importando CloudWatch Log Group..."
         terraform import aws_cloudwatch_log_group.main /ecs/medisupply 2>/dev/null || echo "CloudWatch Log Group no necesita importación"
+        
+        # Importar Load Balancer
+        echo "⚖️ Importando Load Balancer..."
+        ALB_ARN=$(aws elbv2 describe-load-balancers --names medisupply-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "")
+        if [ -n "$ALB_ARN" ] && [ "$ALB_ARN" != "None" ]; then
+          terraform import aws_lb.main $ALB_ARN 2>/dev/null || echo "ALB no necesita importación"
+        fi
+        
+        # Importar Target Group
+        echo "🎯 Importando Target Group..."
+        TG_ARN=$(aws elbv2 describe-target-groups --names medisupply-tg --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "")
+        if [ -n "$TG_ARN" ] && [ "$TG_ARN" != "None" ]; then
+          terraform import aws_lb_target_group.main $TG_ARN 2>/dev/null || echo "Target Group no necesita importación"
+        fi
+        
+        # Importar Route Table Associations
+        echo "🛣️ Importando Route Table Associations..."
+        PUBLIC_RT_ID=$(aws ec2 describe-route-tables --filters "Name=vpc-id,Values=vpc-05119ba31240eb9bd" "Name=tag:Name,Values=medisupply-public-rt" --query 'RouteTables[0].RouteTableId' --output text 2>/dev/null || echo "")
+        if [ -n "$PUBLIC_RT_ID" ] && [ "$PUBLIC_RT_ID" != "None" ]; then
+          terraform import "aws_route_table_association.public[0]" "subnet-0adf58bad0bee883a/$PUBLIC_RT_ID" 2>/dev/null || echo "Asociación 0 no necesita importación"
+          terraform import "aws_route_table_association.public[1]" "subnet-0eb32061dde9cae3f/$PUBLIC_RT_ID" 2>/dev/null || echo "Asociación 1 no necesita importación"
+        fi
+        
+        # Importar Security Groups
+        echo "🔒 Importando Security Groups..."
+        ALB_SG_ID=$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=vpc-05119ba31240eb9bd" "Name=group-name,Values=medisupply-alb-sg" --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "")
+        if [ -n "$ALB_SG_ID" ] && [ "$ALB_SG_ID" != "None" ]; then
+          terraform import aws_security_group.alb $ALB_SG_ID 2>/dev/null || echo "ALB Security Group no necesita importación"
+        fi
+        
+        ECS_SG_ID=$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=vpc-05119ba31240eb9bd" "Name=group-name,Values=medisupply-ecs-tasks-sg" --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "")
+        if [ -n "$ECS_SG_ID" ] && [ "$ECS_SG_ID" != "None" ]; then
+          terraform import aws_security_group.ecs_tasks $ECS_SG_ID 2>/dev/null || echo "ECS Security Group no necesita importación"
+        fi
+        
         echo "✅ Importación completada"
       working-directory: terraform/
       continue-on-error: true
