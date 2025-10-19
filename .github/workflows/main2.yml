@@ -145,10 +145,14 @@ jobs:
         
         # Importar Route Table Associations
         echo "🛣️ Importando Route Table Associations..."
-        PUBLIC_RT_ID=$(aws ec2 describe-route-tables --filters "Name=vpc-id,Values=vpc-05119ba31240eb9bd" "Name=tag:Name,Values=medisupply-public-rt" --query 'RouteTables[0].RouteTableId' --output text 2>/dev/null || echo "")
+        # Buscar la Route Table que tiene asociaciones con las subnets públicas
+        PUBLIC_RT_ID=$(aws ec2 describe-route-tables --filters "Name=vpc-id,Values=vpc-05119ba31240eb9bd" --query 'RouteTables[?Associations[?SubnetId==`subnet-0adf58bad0bee883a` || SubnetId==`subnet-0eb32061dde9cae3f`]].RouteTableId | [0]' --output text 2>/dev/null || echo "")
         if [ -n "$PUBLIC_RT_ID" ] && [ "$PUBLIC_RT_ID" != "None" ]; then
+          echo "Route Table encontrada: $PUBLIC_RT_ID"
           terraform import "aws_route_table_association.public[0]" "subnet-0adf58bad0bee883a/$PUBLIC_RT_ID" 2>/dev/null || echo "Asociación 0 no necesita importación"
           terraform import "aws_route_table_association.public[1]" "subnet-0eb32061dde9cae3f/$PUBLIC_RT_ID" 2>/dev/null || echo "Asociación 1 no necesita importación"
+        else
+          echo "⚠️ No se encontró Route Table con asociaciones a subnets públicas"
         fi
         
         # Importar Security Groups
