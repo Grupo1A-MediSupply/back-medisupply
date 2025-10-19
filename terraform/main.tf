@@ -88,26 +88,17 @@ data "aws_subnet" "private_2" {
   id = "subnet-013d7e1488da139f5" # medisupply-private-subnet-2
 }
 
-# Route table para subnets públicas
-resource "aws_route_table" "public" {
-  vpc_id = local.vpc_id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = data.aws_internet_gateway.existing.id
+# Usar Route Table existente
+data "aws_route_table" "existing_public" {
+  filter {
+    name   = "vpc-id"
+    values = [local.vpc_id]
   }
-
-  tags = {
-    Name = "${var.project_name}-public-rt"
+  
+  filter {
+    name   = "association.subnet-id"
+    values = [data.aws_subnet.public_1.id, data.aws_subnet.public_2.id]
   }
-}
-
-# Asociar subnets públicas con route table
-resource "aws_route_table_association" "public" {
-  count = 2
-
-  subnet_id      = count.index == 0 ? data.aws_subnet.public_1.id : data.aws_subnet.public_2.id
-  route_table_id = aws_route_table.public.id
 }
 
 # Security Group para ALB
@@ -387,8 +378,8 @@ resource "aws_ecs_service" "main" {
 
   network_configuration {
     security_groups  = [aws_security_group.ecs_tasks.id]
-    subnets          = [data.aws_subnet.private_1.id, data.aws_subnet.private_2.id]
-    assign_public_ip = false
+    subnets          = [data.aws_subnet.public_1.id, data.aws_subnet.public_2.id]
+    assign_public_ip = true
   }
 
   load_balancer {
