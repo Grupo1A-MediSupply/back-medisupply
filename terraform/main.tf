@@ -94,7 +94,7 @@ data "aws_route_table" "existing_public" {
     name   = "vpc-id"
     values = [local.vpc_id]
   }
-  
+
   filter {
     name   = "association.subnet-id"
     values = [data.aws_subnet.public_1.id, data.aws_subnet.public_2.id]
