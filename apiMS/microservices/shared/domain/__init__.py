@@ -1,0 +1,4 @@
+"""
+Dominio compartido
+"""
+

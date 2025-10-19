@@ -1,0 +1,51 @@
+"""
+Comandos del servicio de autenticación
+"""
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass
+class RegisterUserCommand:
+    """Comando para registrar un nuevo usuario"""
+    email: str
+    username: str
+    password: str
+    full_name: Optional[str] = None
+    is_active: bool = True
+    is_superuser: bool = False
+
+
+@dataclass
+class LoginCommand:
+    """Comando para iniciar sesión"""
+    username: str
+    password: str
+
+
+@dataclass
+class RefreshTokenCommand:
+    """Comando para refrescar token"""
+    refresh_token: str
+
+
+@dataclass
+class ChangePasswordCommand:
+    """Comando para cambiar contraseña"""
+    user_id: str
+    old_password: str
+    new_password: str
+
+
+@dataclass
+class DeactivateUserCommand:
+    """Comando para desactivar usuario"""
+    user_id: str
+
+
+@dataclass
+class UpdateProfileCommand:
+    """Comando para actualizar perfil"""
+    user_id: str
+    full_name: Optional[str] = None
+
