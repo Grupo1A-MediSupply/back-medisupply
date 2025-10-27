@@ -57,6 +57,63 @@ services:
       retries: 3
       start_period: 40s
 
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    ports:
+      - "8003:8003"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - ORDER_SERVICE_PORT=8003
+      - ORDER_DATABASE_URL=sqlite:///./order_service.db
+      - PRODUCT_SERVICE_URL=http://product-service:8002
+      - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:8080"]
+    volumes:
+      - ./order-service:/app
+      - order-db:/app/data
+    networks:
+      - microservices-network
+    depends_on:
+      - auth-service
+      - product-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  logistics-service:
+    build:
+      context: ./logistics-service
+      dockerfile: Dockerfile
+    container_name: logistics-service
+    ports:
+      - "8004:8004"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOGISTICS_SERVICE_PORT=8004
+      - LOGISTICS_DATABASE_URL=sqlite:///./logistics_service.db
+      - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:8080"]
+    volumes:
+      - ./logistics-service:/app
+      - logistics-db:/app/data
+    networks:
+      - microservices-network
+    depends_on:
+      - auth-service
+      - order-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   # API Gateway (opcional - para futuras implementaciones)
   # api-gateway:
   #   build:
@@ -68,15 +125,21 @@ services:
   #   environment:
   #     - AUTH_SERVICE_URL=http://auth-service:8001
   #     - PRODUCT_SERVICE_URL=http://product-service:8002
+  #     - ORDER_SERVICE_URL=http://order-service:8003
+  #     - LOGISTICS_SERVICE_URL=http://logistics-service:8004
   #   networks:
   #     - microservices-network
   #   depends_on:
   #     - auth-service
   #     - product-service
+  #     - order-service
+  #     - logistics-service
 
 volumes:
   auth-db:
   product-db:
+  order-db:
+  logistics-db:
 
 networks:
   microservices-network:

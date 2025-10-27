@@ -6,4 +6,5 @@ sqlalchemy==2.0.23
 passlib[bcrypt]==1.7.4
 pyjwt==2.8.0
 python-multipart==0.0.6
+httpx==0.25.0
 
