@@ -10,7 +10,7 @@ if shared_path not in sys.path:
     sys.path.insert(0, shared_path)
 
 from shared.domain.events import event_bus
-from ..domain.events import (
+from ...domain.events import (
     OrderCreatedEvent, OrderConfirmedEvent, OrderCancelledEvent,
     OrderShippedEvent, OrderDeliveredEvent
 )

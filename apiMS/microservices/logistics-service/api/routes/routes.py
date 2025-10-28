@@ -25,15 +25,29 @@ router = APIRouter()
 
 class StopRequest(BaseModel):
     """Request para parada"""
-    orderId: str = Field(..., alias="orderId")
+    orderId: str
     priority: int = Field(default=1, ge=1)
     eta: Optional[dict] = None
+    
+    class Config:
+        populate_by_name = True
 
 
 class CreateRouteRequest(BaseModel):
     """Request para crear ruta"""
-    stops: List[StopRequest] = Field(..., min_items=1)
-    vehicleId: Optional[str] = Field(None, alias="vehicleId")
+    stops: List[StopRequest] = Field(..., min_length=1)
+    vehicleId: Optional[str] = None
+    
+    class Config:
+        populate_by_name = True
+
+
+class StartRouteRequest(BaseModel):
+    """Request para iniciar ruta"""
+    vehicleId: str
+    
+    class Config:
+        populate_by_name = True
 
 
 class RouteResponse(BaseModel):
@@ -121,12 +135,12 @@ async def get_route(
 )
 async def start_route(
     route_id: str,
-    vehicleId: str = Field(..., alias="vehicleId"),
+    request: StartRouteRequest,
     handler=Depends(get_start_route_handler)
 ):
     """Iniciar ruta"""
     try:
-        command = StartRouteCommand(route_id=route_id, vehicle_id=vehicleId)
+        command = StartRouteCommand(route_id=route_id, vehicle_id=request.vehicleId)
         route = await handler.handle(command)
         
         return RouteResponse(

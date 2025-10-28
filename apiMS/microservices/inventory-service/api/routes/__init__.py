@@ -8,8 +8,8 @@ from typing import List, Optional
 import io
 import csv
 
-from ..infrastructure.database import get_db
-from ..infrastructure.config import get_settings
+from ...infrastructure.database import get_db
+from ...infrastructure.config import get_settings
 
 router = APIRouter()
 settings = get_settings()
