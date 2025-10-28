@@ -3,8 +3,8 @@ version: '3.8'
 services:
   auth-service:
     build:
-      context: ./auth-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./auth-service/Dockerfile
     container_name: auth-service
     ports:
       - "8001:8001"
@@ -18,8 +18,8 @@ services:
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
       - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:8080"]
     volumes:
-      - ./auth-service:/app
-      - auth-db:/app/data
+      # - ./auth-service:/app  # Comentado para usar código de la imagen Docker
+      - auth-db:/app/auth-service/data
     networks:
       - microservices-network
     healthcheck:
@@ -31,8 +31,8 @@ services:
 
   product-service:
     build:
-      context: ./product-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./product-service/Dockerfile
     container_name: product-service
     ports:
       - "8002:8002"
@@ -44,8 +44,8 @@ services:
       - AUTH_SERVICE_URL=http://auth-service:8001
       - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:8080"]
     volumes:
-      - ./product-service:/app
-      - product-db:/app/data
+      # - ./product-service:/app  # Comentado para usar código de la imagen Docker
+      - product-db:/app/product_service/data
     networks:
       - microservices-network
     depends_on:
@@ -59,8 +59,8 @@ services:
 
   order-service:
     build:
-      context: ./order-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./order-service/Dockerfile
     container_name: order-service
     ports:
       - "8003:8003"
@@ -72,8 +72,8 @@ services:
       - PRODUCT_SERVICE_URL=http://product-service:8002
       - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:8080"]
     volumes:
-      - ./order-service:/app
-      - order-db:/app/data
+      # - ./order-service:/app  # Comentado para usar código de la imagen Docker
+      - order-db:/app/order_service/data
     networks:
       - microservices-network
     depends_on:
@@ -88,8 +88,8 @@ services:
 
   logistics-service:
     build:
-      context: ./logistics-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./logistics-service/Dockerfile
     container_name: logistics-service
     ports:
       - "8004:8004"
@@ -100,8 +100,8 @@ services:
       - LOGISTICS_DATABASE_URL=sqlite:///./logistics_service.db
       - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:8080"]
     volumes:
-      - ./logistics-service:/app
-      - logistics-db:/app/data
+      # - ./logistics-service:/app  # Comentado para usar código de la imagen Docker
+      - logistics-db:/app/logistics_service/data
     networks:
       - microservices-network
     depends_on:
@@ -116,8 +116,8 @@ services:
 
   inventory-service:
     build:
-      context: ./inventory-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./inventory-service/Dockerfile
     container_name: inventory-service
     ports:
       - "8005:8005"
@@ -128,8 +128,8 @@ services:
       - INVENTORY_DATABASE_URL=sqlite:///./inventory_service.db
       - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:8080"]
     volumes:
-      - ./inventory-service:/app
-      - inventory-db:/app/data
+      # - ./inventory-service:/app  # Comentado para usar código de la imagen Docker
+      - inventory-db:/app/inventory_service/data
     networks:
       - microservices-network
     depends_on:
@@ -143,8 +143,8 @@ services:
 
   reports-service:
     build:
-      context: ./reports-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./reports-service/Dockerfile
     container_name: reports-service
     ports:
       - "8006:8006"
@@ -156,8 +156,8 @@ services:
       - ORDER_SERVICE_URL=http://order-service:8003
       - PRODUCT_SERVICE_URL=http://product-service:8002
       - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:8080"]
-    volumes:
-      - ./reports-service:/app
+    # volumes:
+      # - ./reports-service:/app  # Comentado para usar código de la imagen Docker
     networks:
       - microservices-network
     depends_on:
@@ -173,8 +173,8 @@ services:
 
   notifications-service:
     build:
-      context: ./notifications-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./notifications-service/Dockerfile
     container_name: notifications-service
     ports:
       - "8007:8007"
@@ -186,8 +186,8 @@ services:
       - AUTH_SERVICE_URL=http://auth-service:8001
       - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:8080"]
     volumes:
-      - ./notifications-service:/app
-      - notifications-db:/app/data
+      # - ./notifications-service:/app  # Comentado para usar código de la imagen Docker
+      - notifications-db:/app/notifications_service/data
     networks:
       - microservices-network
     depends_on:

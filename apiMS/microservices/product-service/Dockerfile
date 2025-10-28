@@ -41,7 +41,7 @@ COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copiar código de la aplicación
-COPY product-service/ ./product-service/
+COPY product-service/ ./product_service/
 COPY shared/ ./shared/
 
 # Crear directorio para logs
@@ -51,7 +51,7 @@ RUN mkdir -p /app/logs && chown -R appuser:appuser /app
 USER appuser
 
 # Exponer puerto
-EXPOSE 8001
+EXPOSE 8002
 
 # Variables de entorno
 ENV PYTHONPATH=/app
@@ -60,7 +60,8 @@ ENV ENVIRONMENT=production
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8001/health || exit 1
+    CMD curl -f http://localhost:8002/health || exit 1
 
 # Comando por defecto
-CMD ["python", "-m", "uvicorn", "product-service.main:app", "--host", "0.0.0.0", "--port", "8001"]
+WORKDIR /app
+CMD ["python", "-m", "uvicorn", "product_service.main:app", "--host", "0.0.0.0", "--port", "8002"]
