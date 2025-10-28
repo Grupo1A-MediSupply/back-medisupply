@@ -55,6 +55,8 @@ def create_app() -> FastAPI:
     
     # Incluir routers
     app.include_router(router, prefix="/api/v1", tags=["logistics"])
+    # También exponer en formato /api para compatibilidad con contrato Postman
+    app.include_router(router, prefix="/api", tags=["logistics"])
     
     @app.get("/")
     async def root():

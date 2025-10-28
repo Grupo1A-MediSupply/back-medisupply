@@ -11,7 +11,9 @@ class RegisterUserCommand:
     email: str
     username: str
     password: str
+    confirm_password: Optional[str] = None
     full_name: Optional[str] = None
+    phone_number: Optional[str] = None
     is_active: bool = True
     is_superuser: bool = False
 
@@ -33,8 +35,9 @@ class RefreshTokenCommand:
 class ChangePasswordCommand:
     """Comando para cambiar contraseña"""
     user_id: str
-    old_password: str
+    current_password: str
     new_password: str
+    confirm_new_password: str
 
 
 @dataclass
@@ -49,3 +52,15 @@ class UpdateProfileCommand:
     user_id: str
     full_name: Optional[str] = None
 
+
+@dataclass
+class VerifyCodeCommand:
+    """Comando para verificar código"""
+    user_id: str
+    code: str
+
+
+@dataclass
+class ResendCodeCommand:
+    """Comando para reenviar código"""
+    user_id: str

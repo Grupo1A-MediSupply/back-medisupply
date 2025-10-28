@@ -1,47 +1,24 @@
 """
-Aplicación principal del microservicio de productos
+Aplicación principal del microservicio de reportes
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 
 from .infrastructure.config import get_settings
-from .infrastructure.database import create_tables
 from .api.routes import router
-from .application.services import ProductEventHandler, setup_event_handlers
 
 settings = get_settings()
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Gestión del ciclo de vida de la aplicación"""
-    # Startup
-    print(f"🚀 Iniciando {settings.service_name} en {settings.environment}")
-    create_tables()
-    print("✅ Base de datos inicializada")
-    
-    # Configurar event handlers
-    event_handler = ProductEventHandler()
-    setup_event_handlers(event_handler)
-    print("✅ Event handlers configurados")
-    
-    yield
-    
-    # Shutdown
-    print(f"🛑 Cerrando {settings.service_name}")
 
 
 def create_app() -> FastAPI:
     """Factory para crear la aplicación FastAPI"""
     
     app = FastAPI(
-        title="Product Service",
-        description="Microservicio de productos con arquitectura hexagonal",
+        title="Reports Service",
+        description="Microservicio de reportes con arquitectura hexagonal",
         version="1.0.0",
         docs_url="/docs" if settings.environment != "production" else None,
-        redoc_url="/redoc" if settings.environment != "production" else None,
-        lifespan=lifespan
+        redoc_url="/redoc" if settings.environment != "production" else None
     )
     
     # CORS
@@ -54,9 +31,8 @@ def create_app() -> FastAPI:
     )
     
     # Incluir routers
-    app.include_router(router, prefix="/api/v1", tags=["products"])
-    # También exponer en formato /api para compatibilidad con contrato Postman
-    app.include_router(router, prefix="/api", tags=["products"])
+    app.include_router(router, prefix="/api/v1", tags=["reports"])
+    app.include_router(router, prefix="/api", tags=["reports"])
     
     @app.get("/")
     async def root():

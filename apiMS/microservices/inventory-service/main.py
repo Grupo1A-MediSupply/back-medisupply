@@ -1,5 +1,5 @@
 """
-Aplicación principal del microservicio de productos
+Aplicación principal del microservicio de inventario
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,7 +8,6 @@ from contextlib import asynccontextmanager
 from .infrastructure.config import get_settings
 from .infrastructure.database import create_tables
 from .api.routes import router
-from .application.services import ProductEventHandler, setup_event_handlers
 
 settings = get_settings()
 
@@ -21,11 +20,6 @@ async def lifespan(app: FastAPI):
     create_tables()
     print("✅ Base de datos inicializada")
     
-    # Configurar event handlers
-    event_handler = ProductEventHandler()
-    setup_event_handlers(event_handler)
-    print("✅ Event handlers configurados")
-    
     yield
     
     # Shutdown
@@ -36,8 +30,8 @@ def create_app() -> FastAPI:
     """Factory para crear la aplicación FastAPI"""
     
     app = FastAPI(
-        title="Product Service",
-        description="Microservicio de productos con arquitectura hexagonal",
+        title="Inventory Service",
+        description="Microservicio de inventario con arquitectura hexagonal",
         version="1.0.0",
         docs_url="/docs" if settings.environment != "production" else None,
         redoc_url="/redoc" if settings.environment != "production" else None,
@@ -54,9 +48,8 @@ def create_app() -> FastAPI:
     )
     
     # Incluir routers
-    app.include_router(router, prefix="/api/v1", tags=["products"])
-    # También exponer en formato /api para compatibilidad con contrato Postman
-    app.include_router(router, prefix="/api", tags=["products"])
+    app.include_router(router, prefix="/api/v1", tags=["inventory"])
+    app.include_router(router, prefix="/api", tags=["inventory"])
     
     @app.get("/")
     async def root():

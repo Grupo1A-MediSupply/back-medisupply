@@ -114,6 +114,91 @@ services:
       retries: 3
       start_period: 40s
 
+  inventory-service:
+    build:
+      context: ./inventory-service
+      dockerfile: Dockerfile
+    container_name: inventory-service
+    ports:
+      - "8005:8005"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - INVENTORY_SERVICE_PORT=8005
+      - INVENTORY_DATABASE_URL=sqlite:///./inventory_service.db
+      - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:8080"]
+    volumes:
+      - ./inventory-service:/app
+      - inventory-db:/app/data
+    networks:
+      - microservices-network
+    depends_on:
+      - auth-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  reports-service:
+    build:
+      context: ./reports-service
+      dockerfile: Dockerfile
+    container_name: reports-service
+    ports:
+      - "8006:8006"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - REPORTS_SERVICE_PORT=8006
+      - AUTH_SERVICE_URL=http://auth-service:8001
+      - ORDER_SERVICE_URL=http://order-service:8003
+      - PRODUCT_SERVICE_URL=http://product-service:8002
+      - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:8080"]
+    volumes:
+      - ./reports-service:/app
+    networks:
+      - microservices-network
+    depends_on:
+      - auth-service
+      - order-service
+      - product-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  notifications-service:
+    build:
+      context: ./notifications-service
+      dockerfile: Dockerfile
+    container_name: notifications-service
+    ports:
+      - "8007:8007"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - NOTIFICATIONS_SERVICE_PORT=8007
+      - NOTIFICATIONS_DATABASE_URL=sqlite:///./notifications_service.db
+      - AUTH_SERVICE_URL=http://auth-service:8001
+      - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:8080"]
+    volumes:
+      - ./notifications-service:/app
+      - notifications-db:/app/data
+    networks:
+      - microservices-network
+    depends_on:
+      - auth-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8007/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   # API Gateway (opcional - para futuras implementaciones)
   # api-gateway:
   #   build:
@@ -140,6 +225,8 @@ volumes:
   product-db:
   order-db:
   logistics-db:
+  inventory-db:
+  notifications-db:
 
 networks:
   microservices-network:
