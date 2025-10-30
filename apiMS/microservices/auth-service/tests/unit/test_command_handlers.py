@@ -8,22 +8,14 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 # Agregar paths
-auth_service_path = str(Path(__file__).parent.parent.parent)
-shared_path = str(Path(__file__).parent.parent.parent.parent / "shared")
+auth_service_path = str(Path(__file__).parent.parent.resolve())
+shared_path = str(Path(__file__).parent.parent.parent.resolve() / "shared")
 if auth_service_path not in sys.path:
     sys.path.insert(0, auth_service_path)
 if shared_path not in sys.path:
-    sys.path.insert(0, shared_path)
+    sys.path.insert(0, str(shared_path))
 
-from shared.domain.value_objects import EntityId, Email
-from domain.value_objects import Username, HashedPassword, FullName
-from domain.entities import User
-from application.commands import RegisterUserCommand, LoginCommand, RefreshTokenCommand
-from application.handlers import (
-    RegisterUserCommandHandler,
-    LoginCommandHandler,
-    RefreshTokenCommandHandler
-)
+# Los imports se hacen dentro de las clases para evitar problemas cuando pytest carga el módulo
 
 
 @pytest.mark.unit
@@ -37,6 +29,13 @@ class TestRegisterUserCommandHandler:
         mock_password_hasher
     ):
         """Test: Registrar usuario exitosamente"""
+        # Los imports se hacen aquí para evitar problemas cuando pytest carga el módulo
+        from shared.domain.value_objects import EntityId, Email
+        from domain.value_objects import Username, HashedPassword
+        from domain.entities import User
+        from application.commands import RegisterUserCommand
+        from application.handlers import RegisterUserCommandHandler
+        
         # Arrange
         handler = RegisterUserCommandHandler(
             mock_user_repository,
@@ -77,6 +76,9 @@ class TestRegisterUserCommandHandler:
         mock_password_hasher
     ):
         """Test: Falla si el username ya existe"""
+        from application.commands import RegisterUserCommand
+        from application.handlers import RegisterUserCommandHandler
+        
         # Arrange
         mock_user_repository.exists_by_username.return_value = True
         
@@ -103,6 +105,9 @@ class TestRegisterUserCommandHandler:
         mock_password_hasher
     ):
         """Test: Falla si el email ya existe"""
+        from application.commands import RegisterUserCommand
+        from application.handlers import RegisterUserCommandHandler
+        
         # Arrange
         mock_user_repository.exists_by_username.return_value = False
         mock_user_repository.exists_by_email.return_value = True
@@ -138,6 +143,9 @@ class TestLoginCommandHandler:
         mock_token_service
     ):
         """Test: Login exitoso con username"""
+        from application.commands import LoginCommand
+        from application.handlers import LoginCommandHandler
+        
         # Arrange
         mock_user_repository.find_by_username.return_value = user
         mock_password_hasher.verify_password.return_value = True
@@ -172,6 +180,9 @@ class TestLoginCommandHandler:
         mock_token_service
     ):
         """Test: Login falla si usuario no existe"""
+        from application.commands import LoginCommand
+        from application.handlers import LoginCommandHandler
+        
         # Arrange
         mock_user_repository.find_by_username.return_value = None
         mock_user_repository.find_by_email.return_value = None
@@ -199,6 +210,9 @@ class TestLoginCommandHandler:
         mock_token_service
     ):
         """Test: Login falla si contraseña es incorrecta"""
+        from application.commands import LoginCommand
+        from application.handlers import LoginCommandHandler
+        
         # Arrange
         mock_user_repository.find_by_username.return_value = user
         mock_password_hasher.verify_password.return_value = False
@@ -225,6 +239,12 @@ class TestLoginCommandHandler:
         mock_token_service
     ):
         """Test: Login falla si usuario está inactivo"""
+        from shared.domain.value_objects import EntityId, Email
+        from domain.value_objects import Username, HashedPassword
+        from domain.entities import User
+        from application.commands import LoginCommand
+        from application.handlers import LoginCommandHandler
+        
         # Arrange
         inactive_user = User(
             user_id=EntityId("123"),
@@ -265,6 +285,9 @@ class TestRefreshTokenCommandHandler:
         mock_token_service
     ):
         """Test: Refresh token exitoso"""
+        from application.commands import RefreshTokenCommand
+        from application.handlers import RefreshTokenCommandHandler
+        
         # Arrange
         mock_user_repository.find_by_id.return_value = user
         mock_token_service.verify_refresh_token.return_value = {
@@ -296,6 +319,9 @@ class TestRefreshTokenCommandHandler:
         mock_token_service
     ):
         """Test: Refresh token inválido lanza error"""
+        from application.commands import RefreshTokenCommand
+        from application.handlers import RefreshTokenCommandHandler
+        
         # Arrange
         mock_token_service.verify_refresh_token.side_effect = ValueError("Token inválido")
         
@@ -316,6 +342,9 @@ class TestRefreshTokenCommandHandler:
         mock_token_service
     ):
         """Test: Refresh token falla si usuario no existe"""
+        from application.commands import RefreshTokenCommand
+        from application.handlers import RefreshTokenCommandHandler
+        
         # Arrange
         mock_token_service.verify_refresh_token.return_value = {
             "user_id": "nonexistent",

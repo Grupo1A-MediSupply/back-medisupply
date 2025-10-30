@@ -56,6 +56,46 @@ jobs:
         export PYTHONPATH=$(pwd)
         pytest product-service/tests/unit/ -v --tb=short
     
+    - name: 🧪 Ejecutar tests - Order Service
+      run: |
+        cd apiMS/microservices
+        echo "════════════════════════════════════════════════"
+        echo "📋 Order Service - Tests Unitarios"
+        echo "════════════════════════════════════════════════"
+        # Configurar PYTHONPATH para importaciones correctas
+        export PYTHONPATH=$(pwd)
+        pytest order-service/tests/unit/test_commands_queries.py -v --tb=short
+    
+    - name: 🧪 Ejecutar tests - Logistics Service
+      run: |
+        cd apiMS/microservices
+        echo "════════════════════════════════════════════════"
+        echo "🚚 Logistics Service - Tests Unitarios"
+        echo "════════════════════════════════════════════════"
+        # Configurar PYTHONPATH para importaciones correctas
+        export PYTHONPATH=$(pwd)
+        pytest logistics-service/tests/unit/test_commands_queries.py -v --tb=short
+    
+    - name: 🧪 Ejecutar tests - Notifications Service
+      run: |
+        cd apiMS/microservices
+        echo "════════════════════════════════════════════════"
+        echo "🔔 Notifications Service - Tests Unitarios"
+        echo "════════════════════════════════════════════════"
+        # Configurar PYTHONPATH para importaciones correctas
+        export PYTHONPATH=$(pwd)
+        pytest notifications-service/tests/unit/test_entities.py notifications-service/tests/unit/test_routes.py -v --tb=short
+    
+    - name: 🧪 Ejecutar tests - Shared
+      run: |
+        cd apiMS/microservices
+        echo "════════════════════════════════════════════════"
+        echo "🔗 Shared - Tests Unitarios"
+        echo "════════════════════════════════════════════════"
+        # Configurar PYTHONPATH para importaciones correctas
+        export PYTHONPATH=$(pwd)
+        pytest shared/tests/unit/ -v --tb=short
+    
     - name: 📊 Generar reporte de cobertura
       run: |
         cd apiMS/microservices
@@ -71,6 +111,35 @@ jobs:
         echo "📦 Generando cobertura Product Service..."
         pytest product-service/tests/unit/ \
           --cov=product-service/domain \
+          --cov-append \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing
+        echo "📋 Generando cobertura Order Service..."
+        pytest order-service/tests/unit/test_commands_queries.py \
+          --cov=order-service/application \
+          --cov-append \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing
+        echo "🚚 Generando cobertura Logistics Service..."
+        pytest logistics-service/tests/unit/test_commands_queries.py \
+          --cov=logistics-service/application \
+          --cov-append \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing
+        echo "🔔 Generando cobertura Notifications Service..."
+        pytest notifications-service/tests/unit/test_entities.py notifications-service/tests/unit/test_routes.py \
+          --cov=notifications-service/domain \
+          --cov=notifications-service/api \
+          --cov-append \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing
+        echo "🔗 Generando cobertura Shared..."
+        pytest shared/tests/unit/ \
+          --cov=shared/domain \
           --cov-append \
           --cov-report=xml \
           --cov-report=html \
@@ -102,13 +171,17 @@ jobs:
         echo "╚══════════════════════════════════════════════════════════════╝"
         echo ""
         echo "📊 Resultados:"
-        echo "✅ Auth Service - Value Objects: 20 tests"
-        echo "✅ Auth Service - Entities: 13 tests"
-        echo "✅ Product Service - Value Objects: 21 tests"
-        echo "✅ Product Service - Entities: 13 tests"
+        echo "✅ Auth Service: 33 tests (Value Objects + Entities)"
+        echo "✅ Product Service: 34 tests (Value Objects + Entities)"
+        echo "✅ Order Service: 15 tests (Commands & Queries)"
+        echo "✅ Logistics Service: 11 tests (Commands & Queries)"
+        echo "✅ Notifications Service: 6 tests (Entities + Routes)"
+        echo "✅ Shared: 5 tests (Value Objects + Entity Base)"
         echo ""
-        echo "Total: 67 tests unitarios"
+        echo "════════════════════════════════════════════════════════════════"
+        echo "📊 TOTAL: 104 tests unitarios"
         echo "Versión Python: ${{ matrix.python-version }}"
+        echo "════════════════════════════════════════════════════════════════"
         echo ""
         echo "🎉 Pipeline completado!"
 
