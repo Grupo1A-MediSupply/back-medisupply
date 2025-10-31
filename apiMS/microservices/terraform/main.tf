@@ -88,6 +88,7 @@ locals {
   notifications_db_url = var.enable_cloud_sql ? (
     "postgresql://${google_sql_user.notifications_db_user[0].name}:${urlencode(random_password.notifications_db_password[0].result)}@/${google_sql_database.notifications_db[0].name}?host=/cloudsql/${local.cloud_sql_connection_name}"
   ) : "sqlite:///./data/notifications_service.db"
+  
 }
 
 # ==============================================================================
@@ -99,13 +100,8 @@ resource "google_cloud_run_service" "auth_service" {
   name     = "auth-service"
   location = var.region
 
-  # Esperar a que el registro esté listo y Cloud SQL esté creado (si está habilitado)
-  depends_on = var.enable_cloud_sql ? [
-    null_resource.wait_for_registry,
-    google_sql_database.auth_db[0],
-    google_sql_user.auth_db_user[0],
-    google_secret_manager_secret_version.auth_db_password[0]
-  ] : [null_resource.wait_for_registry]
+  # Las dependencias se detectan automáticamente a través de las referencias en locals
+  depends_on = [null_resource.wait_for_registry]
 
   template {
     spec {
