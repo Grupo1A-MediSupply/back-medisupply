@@ -201,6 +201,7 @@ jobs:
         TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
         TF_VAR_secret_key: ${{ secrets.SECRET_KEY }}
         TF_VAR_region: us-central1
+        TF_VAR_enable_cloud_sql: ${{ secrets.ENABLE_CLOUD_SQL || vars.ENABLE_CLOUD_SQL || 'true' }}
       run: |
         echo "🔍 Verificando y importando recursos existentes..."
         
@@ -220,7 +221,7 @@ jobs:
           echo "   ℹ️  Artifact Registry no existe, se creará automáticamente"
         fi
         
-        # Importar Secret Manager si existe
+        # Importar Secret Manager (auth-service-secret-key) si existe
         if gcloud secrets describe "$SECRET_ID" --project="$PROJECT_ID" &>/dev/null; then
           echo "🔐 Importando Secret Manager: $SECRET_ID"
           terraform import \
@@ -228,7 +229,35 @@ jobs:
             "projects/$PROJECT_ID/secrets/$SECRET_ID" 2>/dev/null || \
             echo "   ✅ Ya importado o no necesario"
         else
-          echo "   ℹ️  Secret Manager no existe, se creará automáticamente"
+          echo "   ℹ️  Secret Manager ($SECRET_ID) no existe, se creará automáticamente"
+        fi
+        
+        # Importar secretos de base de datos si existen y Cloud SQL está habilitado
+        if [ "${TF_VAR_enable_cloud_sql:-true}" != "false" ]; then
+          echo "🔐 Verificando secretos de base de datos..."
+          
+          # Lista de secretos de base de datos
+          declare -A DB_SECRETS=(
+            ["auth-service-db-password"]="google_secret_manager_secret.auth_db_password[0]"
+            ["product-service-db-password"]="google_secret_manager_secret.product_db_password[0]"
+            ["order-service-db-password"]="google_secret_manager_secret.order_db_password[0]"
+            ["logistics-service-db-password"]="google_secret_manager_secret.logistics_db_password[0]"
+            ["notifications-service-db-password"]="google_secret_manager_secret.notifications_db_password[0]"
+          )
+          
+          for DB_SECRET in "${!DB_SECRETS[@]}"; do
+            TERRAFORM_RESOURCE="${DB_SECRETS[$DB_SECRET]}"
+            
+            if gcloud secrets describe "$DB_SECRET" --project="$PROJECT_ID" &>/dev/null; then
+              echo "🔐 Importando Secret Manager DB: $DB_SECRET"
+              terraform import \
+                "$TERRAFORM_RESOURCE" \
+                "projects/$PROJECT_ID/secrets/$DB_SECRET" 2>/dev/null || \
+                echo "   ✅ Ya importado o no necesario"
+            else
+              echo "   ℹ️  Secret DB ($DB_SECRET) no existe, se creará automáticamente"
+            fi
+          done
         fi
         
         echo "✅ Importación completada"
@@ -244,6 +273,7 @@ jobs:
         TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
         TF_VAR_secret_key: ${{ secrets.SECRET_KEY }}
         TF_VAR_region: us-central1
+        TF_VAR_enable_cloud_sql: ${{ secrets.ENABLE_CLOUD_SQL || vars.ENABLE_CLOUD_SQL || 'true' }}
       run: |
         echo "📋 Generando plan de Terraform..."
         terraform plan -out=tfplan
@@ -264,6 +294,7 @@ jobs:
         TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
         TF_VAR_secret_key: ${{ secrets.SECRET_KEY }}
         TF_VAR_region: us-central1
+        TF_VAR_enable_cloud_sql: ${{ secrets.ENABLE_CLOUD_SQL || vars.ENABLE_CLOUD_SQL || 'true' }}
       run: |
         terraform apply -auto-approve tfplan
     
