@@ -3,9 +3,7 @@ name: 🚀 Deploy to GCP Cloud Run
 on:
   push:
     branches:
-      - main
-      - develop
-      - feature/*
+      - '**'  # Cualquier rama
   pull_request:
     branches:
       - main
@@ -222,7 +220,7 @@ jobs:
         ' || echo "  No hay cambios planificados"
     
     - name: 🚀 Terraform Apply
-      if: github.ref == 'refs/heads/feature/*' || github.event_name == 'workflow_dispatch' 
+      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       working-directory: apiMS/microservices/terraform
       env:
         TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
@@ -232,7 +230,7 @@ jobs:
         terraform apply -auto-approve tfplan
     
     - name: 📊 Get Service URLs
-      if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feature/*'
+      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       working-directory: apiMS/microservices/terraform
       run: |
         echo "🔗 URLs de Servicios:" >> $GITHUB_STEP_SUMMARY
@@ -249,7 +247,7 @@ jobs:
   health-check:
     name: Health Check Services
     needs: deploy
-    if: github.ref == 'refs/heads/feature/*' || github.event_name == 'workflow_dispatch' 
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     
     steps:
