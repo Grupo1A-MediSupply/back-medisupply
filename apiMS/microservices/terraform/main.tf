@@ -538,7 +538,7 @@ resource "google_sql_database_instance" "postgres" {
     ip_configuration {
       ipv4_enabled    = false # No necesitamos IP pública para Cloud Run
       private_network = null
-      ssl_mode         = "ALLOW_UNENCRYPTED" # Cloud Run usa conexión privada
+      ssl_mode        = "ALLOW_UNENCRYPTED_AND_ENCRYPTED" # Permite conexiones sin SSL (Cloud Run usa conexión privada)
     }
 
     # Configuración de flags de PostgreSQL
