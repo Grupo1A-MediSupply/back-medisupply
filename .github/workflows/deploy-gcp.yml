@@ -222,7 +222,7 @@ jobs:
         ' || echo "  No hay cambios planificados"
     
     - name: 🚀 Terraform Apply
-      if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feature/*'
+      if: github.ref == 'refs/heads/feature/*' || github.event_name == 'workflow_dispatch' 
       working-directory: apiMS/microservices/terraform
       env:
         TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
@@ -249,7 +249,7 @@ jobs:
   health-check:
     name: Health Check Services
     needs: deploy
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feature/*'
+    if: github.ref == 'refs/heads/feature/*' || github.event_name == 'workflow_dispatch' 
     runs-on: ubuntu-latest
     
     steps:
