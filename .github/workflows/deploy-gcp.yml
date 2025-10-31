@@ -68,6 +68,7 @@ jobs:
       working-directory: apiMS/microservices
       run: |
         docker build \
+          --platform linux/amd64 \
           -f auth-service/Dockerfile \
           -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/auth-service:${{ github.sha }} \
           -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/auth-service:latest \
@@ -79,6 +80,7 @@ jobs:
       working-directory: apiMS/microservices
       run: |
         docker build \
+          --platform linux/amd64 \
           -f product-service/Dockerfile \
           -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/product-service:${{ github.sha }} \
           -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/product-service:latest \
@@ -90,6 +92,7 @@ jobs:
       working-directory: apiMS/microservices
       run: |
         docker build \
+          --platform linux/amd64 \
           -f order-service/Dockerfile \
           -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/order-service:${{ github.sha }} \
           -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/order-service:latest \
@@ -101,6 +104,7 @@ jobs:
       working-directory: apiMS/microservices
       run: |
         docker build \
+          --platform linux/amd64 \
           -f logistics-service/Dockerfile \
           -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/logistics-service:${{ github.sha }} \
           -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/logistics-service:latest \
@@ -112,6 +116,7 @@ jobs:
       working-directory: apiMS/microservices
       run: |
         docker build \
+          --platform linux/amd64 \
           -f notifications-service/Dockerfile \
           -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/notifications-service:${{ github.sha }} \
           -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/notifications-service:latest \
@@ -147,6 +152,46 @@ jobs:
       with:
         terraform_version: "1.6.0"
     
+    - name: 🔍 Verificar recursos existentes y limpiar
+      working-directory: apiMS/microservices/terraform
+      env:
+        TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+        TF_VAR_secret_key: ${{ secrets.SECRET_KEY }}
+        TF_VAR_region: us-central1
+      run: |
+        echo "🔍 Verificando recursos Cloud Run existentes..."
+        
+        # Servicios a verificar
+        SERVICES=("auth-service" "product-service" "order-service" "logistics-service" "notifications-service")
+        FOUND_SERVICES=()
+        
+        for service in "${SERVICES[@]}"; do
+          if gcloud run services describe "$service" \
+            --region=${{ env.GCP_REGION }} \
+            --format="value(name)" 2>/dev/null | grep -q "$service"; then
+            echo "⚠️  Servicio encontrado: $service"
+            FOUND_SERVICES+=("$service")
+          fi
+        done
+        
+        if [ ${#FOUND_SERVICES[@]} -gt 0 ]; then
+          echo "📋 Servicios encontrados (${#FOUND_SERVICES[@]}): ${FOUND_SERVICES[*]}"
+          echo "🗑️  Eliminando servicios existentes antes del despliegue..."
+          
+          for service in "${FOUND_SERVICES[@]}"; do
+            echo "   Eliminando $service..."
+            gcloud run services delete "$service" \
+              --region=${{ env.GCP_REGION }} \
+              --quiet || echo "   ⚠️  No se pudo eliminar $service (puede que ya no exista)"
+          done
+          
+          echo "⏳ Esperando 10 segundos para que se completen las eliminaciones..."
+          sleep 10
+          echo "✅ Limpieza completada"
+        else
+          echo "✅ No se encontraron servicios existentes para limpiar"
+        fi
+    
     - name: 🔧 Terraform Init
       working-directory: apiMS/microservices/terraform
       run: |
@@ -164,7 +209,17 @@ jobs:
         TF_VAR_secret_key: ${{ secrets.SECRET_KEY }}
         TF_VAR_region: us-central1
       run: |
+        echo "📋 Generando plan de Terraform..."
         terraform plan -out=tfplan
+        
+        # Mostrar resumen del plan
+        echo ""
+        echo "📊 Resumen del plan:"
+        terraform show -json tfplan | jq -r '
+          .resource_changes[] | 
+          select(.change.actions != null and (.change.actions | length > 0)) |
+          "  \(.change.actions[0]) \(.address)"
+        ' || echo "  No hay cambios planificados"
     
     - name: 🚀 Terraform Apply
       if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
@@ -224,10 +279,42 @@ jobs:
         AUTH_URL=$(terraform output -raw auth_service_url)
         PRODUCT_URL=$(terraform output -raw product_service_url)
         ORDER_URL=$(terraform output -raw order_service_url)
+        LOGISTICS_URL=$(terraform output -raw logistics_service_url)
+        NOTIFICATIONS_URL=$(terraform output -raw notifications_service_url)
         
         echo "🔍 Verificando salud de servicios..."
+        echo ""
         
-        curl -f "$AUTH_URL/health" && echo "✅ Auth Service OK" || echo "❌ Auth Service FAILED"
-        curl -f "$PRODUCT_URL/health" && echo "✅ Product Service OK" || echo "❌ Product Service FAILED"
-        curl -f "$ORDER_URL/health" && echo "✅ Order Service OK" || echo "❌ Order Service FAILED"
+        # Función para verificar servicio con retry
+        check_service() {
+          local name=$1
+          local url=$2
+          local max_attempts=3
+          local attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            if curl -f -s --max-time 10 "$url/health" > /dev/null 2>&1; then
+              echo "✅ $name OK"
+              return 0
+            else
+              if [ $attempt -lt $max_attempts ]; then
+                echo "   ⏳ Intento $attempt/$max_attempts falló, reintentando en 5 segundos..."
+                sleep 5
+              fi
+              attempt=$((attempt + 1))
+            fi
+          done
+          
+          echo "❌ $name FAILED después de $max_attempts intentos"
+          return 1
+        }
+        
+        check_service "Auth Service" "$AUTH_URL"
+        check_service "Product Service" "$PRODUCT_URL"
+        check_service "Order Service" "$ORDER_URL"
+        check_service "Logistics Service" "$LOGISTICS_URL"
+        check_service "Notifications Service" "$NOTIFICATIONS_URL"
+        
+        echo ""
+        echo "📊 Resumen de Health Checks completado"
 

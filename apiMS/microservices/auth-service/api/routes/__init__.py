@@ -51,7 +51,7 @@ class RegisterRequest(BaseModel):
     """Request para registro de usuario"""
     email: EmailStr
     username: str = Field(..., min_length=3, max_length=50)
-    password: str = Field(..., min_length=8)
+    password: str = Field(..., min_length=8, max_length=72, description="Contraseña (máximo 72 caracteres)")
     confirm_password: Optional[str] = None
     full_name: Optional[str] = None
     phone_number: Optional[str] = None
@@ -151,11 +151,17 @@ async def register(
         
         user = await handler.handle(command)
         
-        return {
-            "success": True,
-            "user_id": str(user.id),
-            "message": "Usuario registrado exitosamente"
-        }
+        # Devolver UserResponse según el modelo esperado
+        return UserResponse(
+            id=str(user.id),
+            email=str(user.email),
+            username=str(user.username),
+            full_name=str(user.full_name) if user.full_name else None,
+            is_active=user.is_active,
+            is_superuser=user.is_superuser,
+            created_at=user.created_at,
+            updated_at=user.updated_at
+        )
         
     except ValueError as e:
         raise HTTPException(
@@ -358,11 +364,22 @@ async def get_current_user(
     description="Verifica si un token es válido"
 )
 async def verify_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
     handler=Depends(get_verify_token_handler)
 ):
-    """Verificar token"""
+    """Verificar token
+    
+    Si no se proporciona token, devuelve valid=False en lugar de error 403.
+    Esto permite verificar la validez sin requerir autenticación previa.
+    """
     try:
+        # Si no hay token, devolver inválido
+        if not credentials:
+            return VerifyTokenResponse(
+                valid=False,
+                error="Token no proporcionado"
+            )
+        
         query = VerifyTokenQuery(token=credentials.credentials)
         
         result = await handler.handle(query)

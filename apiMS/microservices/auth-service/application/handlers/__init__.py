@@ -50,7 +50,8 @@ class RegisterUserCommandHandler:
         if await self.user_repository.exists_by_email(email):
             raise ValueError(f"El email '{command.email}' ya está registrado")
         
-        # Hashear contraseña
+        # Hashear contraseña (el password_hasher maneja el truncamiento automático)
+        # El BcryptPasswordHasher ya trunca automáticamente antes de hashear
         hashed_password = HashedPassword(
             self.password_hasher.hash_password(command.password)
         )
