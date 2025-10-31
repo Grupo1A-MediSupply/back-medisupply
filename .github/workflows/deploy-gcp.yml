@@ -195,6 +195,39 @@ jobs:
       run: |
         terraform init
     
+    - name: 📥 Importar recursos existentes (si existen)
+      working-directory: apiMS/microservices/terraform
+      env:
+        TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+        TF_VAR_region: us-central1
+      run: |
+        echo "🔍 Verificando y importando recursos existentes..."
+        
+        PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
+        REGION="us-central1"
+        REPO_ID="${PROJECT_ID}-docker-repo"
+        SECRET_ID="auth-service-secret-key"
+        
+        # Importar Artifact Registry si existe
+        if gcloud artifacts repositories describe "$REPO_ID" --location="$REGION" --project="$PROJECT_ID" &>/dev/null; then
+          echo "📦 Importando Artifact Registry: $REPO_ID"
+          terraform import \
+            "google_artifact_registry_repository.docker_repo" \
+            "projects/$PROJECT_ID/locations/$REGION/repositories/$REPO_ID" 2>/dev/null || \
+            echo "   ✅ Ya importado o no necesario"
+        fi
+        
+        # Importar Secret Manager si existe
+        if gcloud secrets describe "$SECRET_ID" --project="$PROJECT_ID" &>/dev/null; then
+          echo "🔐 Importando Secret Manager: $SECRET_ID"
+          terraform import \
+            "google_secret_manager_secret.secret_key" \
+            "projects/$PROJECT_ID/secrets/$SECRET_ID" 2>/dev/null || \
+            echo "   ✅ Ya importado o no necesario"
+        fi
+        
+        echo "✅ Importación completada"
+    
     - name: ✅ Terraform Validate
       working-directory: apiMS/microservices/terraform
       run: |

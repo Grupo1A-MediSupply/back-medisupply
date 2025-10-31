@@ -502,6 +502,10 @@ resource "google_secret_manager_secret" "secret_key" {
 resource "google_secret_manager_secret_version" "secret_key" {
   secret      = google_secret_manager_secret.secret_key.id
   secret_data = var.secret_key
+  
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # ==============================================================================
@@ -534,7 +538,7 @@ resource "google_sql_database_instance" "postgres" {
     ip_configuration {
       ipv4_enabled    = false # No necesitamos IP pública para Cloud Run
       private_network = null
-      require_ssl     = false # Cloud Run usa conexión privada
+      ssl_mode         = "ALLOW_UNENCRYPTED" # Cloud Run usa conexión privada
     }
 
     # Configuración de flags de PostgreSQL
