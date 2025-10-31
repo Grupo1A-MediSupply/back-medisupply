@@ -55,3 +55,22 @@ variable "memory_limit" {
   default     = "512Mi"
 }
 
+variable "db_tier" {
+  description = "Tier de la instancia Cloud SQL (db-f1-micro es el más económico, ~$7/mes)"
+  type        = string
+  default     = "db-f1-micro"
+}
+
+variable "db_root_password" {
+  description = "Contraseña del usuario root de PostgreSQL (generar con: openssl rand -base64 32)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "enable_cloud_sql" {
+  description = "Habilitar Cloud SQL PostgreSQL (si es false, usa SQLite)"
+  type        = bool
+  default     = true
+}
+
