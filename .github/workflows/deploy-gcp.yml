@@ -199,6 +199,7 @@ jobs:
       working-directory: apiMS/microservices/terraform
       env:
         TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+        TF_VAR_secret_key: ${{ secrets.SECRET_KEY }}
         TF_VAR_region: us-central1
       run: |
         echo "🔍 Verificando y importando recursos existentes..."
@@ -215,6 +216,8 @@ jobs:
             "google_artifact_registry_repository.docker_repo" \
             "projects/$PROJECT_ID/locations/$REGION/repositories/$REPO_ID" 2>/dev/null || \
             echo "   ✅ Ya importado o no necesario"
+        else
+          echo "   ℹ️  Artifact Registry no existe, se creará automáticamente"
         fi
         
         # Importar Secret Manager si existe
@@ -224,6 +227,8 @@ jobs:
             "google_secret_manager_secret.secret_key" \
             "projects/$PROJECT_ID/secrets/$SECRET_ID" 2>/dev/null || \
             echo "   ✅ Ya importado o no necesario"
+        else
+          echo "   ℹ️  Secret Manager no existe, se creará automáticamente"
         fi
         
         echo "✅ Importación completada"
