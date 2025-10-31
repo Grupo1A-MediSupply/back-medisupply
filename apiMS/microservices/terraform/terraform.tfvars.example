@@ -1,0 +1,22 @@
+# ==============================================================================
+# Archivo de ejemplo para variables de Terraform
+# ==============================================================================
+# Copia este archivo como terraform.tfvars y configura tus valores
+# IMPORTANTE: No commitees terraform.tfvars a git (ya está en .gitignore)
+# ==============================================================================
+
+project_id = "tu-proyecto-gcp-id"
+region     = "us-central1"
+zone       = "us-central1-a"
+environment = "dev"
+
+# Genera una secret key segura con:
+# openssl rand -hex 32
+secret_key = "tu-secret-key-aqui-cambiar-en-produccion"
+
+# Configuración de recursos (opcional - ajusta según necesidades)
+min_instances = 0  # 0 = serverless (más económico, escala a cero)
+max_instances = 10
+cpu_limit     = "1"
+memory_limit  = "512Mi"
+

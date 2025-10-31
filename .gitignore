@@ -181,3 +181,13 @@ codigoV3/
 *.tfstate
 *.tfstate.*
 *.tfplan
+terraform.tfvars
+terraform-key.json
+*.tfvars
+!terraform.tfvars.example
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl

@@ -1,0 +1,232 @@
+name: 🚀 Deploy to GCP Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: us-central1
+  ARTIFACT_REGISTRY: ${{ secrets.GCP_PROJECT_ID }}-docker-repo
+
+jobs:
+  # ============================================================================
+  # Build and Push Docker Images
+  # ============================================================================
+  build-and-push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+    
+    - name: 🔐 Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+    
+    - name: 🐳 Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+    
+    - name: 🔧 Configure Docker for Artifact Registry
+      run: |
+        gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+    
+    - name: 🔍 Verify Artifact Registry exists
+      run: |
+        # Crear repositorio si no existe (Terraform lo creará, pero por si acaso)
+        gcloud artifacts repositories describe ${{ env.ARTIFACT_REGISTRY }} \
+          --location=${{ env.GCP_REGION }} \
+          --format="value(name)" || \
+        gcloud artifacts repositories create ${{ env.ARTIFACT_REGISTRY }} \
+          --repository-format=docker \
+          --location=${{ env.GCP_REGION }} \
+          --description="Docker repository for MediSupply microservices" || true
+    
+    - name: 📦 Build and Push Auth Service
+      working-directory: apiMS/microservices
+      run: |
+        docker build \
+          -f auth-service/Dockerfile \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/auth-service:${{ github.sha }} \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/auth-service:latest \
+          .
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/auth-service:${{ github.sha }}
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/auth-service:latest
+    
+    - name: 📦 Build and Push Product Service
+      working-directory: apiMS/microservices
+      run: |
+        docker build \
+          -f product-service/Dockerfile \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/product-service:${{ github.sha }} \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/product-service:latest \
+          .
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/product-service:${{ github.sha }}
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/product-service:latest
+    
+    - name: 📦 Build and Push Order Service
+      working-directory: apiMS/microservices
+      run: |
+        docker build \
+          -f order-service/Dockerfile \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/order-service:${{ github.sha }} \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/order-service:latest \
+          .
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/order-service:${{ github.sha }}
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/order-service:latest
+    
+    - name: 📦 Build and Push Logistics Service
+      working-directory: apiMS/microservices
+      run: |
+        docker build \
+          -f logistics-service/Dockerfile \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/logistics-service:${{ github.sha }} \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/logistics-service:latest \
+          .
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/logistics-service:${{ github.sha }}
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/logistics-service:latest
+    
+    - name: 📦 Build and Push Notifications Service
+      working-directory: apiMS/microservices
+      run: |
+        docker build \
+          -f notifications-service/Dockerfile \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/notifications-service:${{ github.sha }} \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/notifications-service:latest \
+          .
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/notifications-service:${{ github.sha }}
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/notifications-service:latest
+
+  # ============================================================================
+  # Deploy with Terraform
+  # ============================================================================
+  deploy:
+    name: Deploy Infrastructure with Terraform
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+    
+    - name: 🔐 Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+    
+    - name: 🐳 Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+    
+    - name: 📦 Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.6.0"
+    
+    - name: 🔧 Terraform Init
+      working-directory: apiMS/microservices/terraform
+      run: |
+        terraform init
+    
+    - name: ✅ Terraform Validate
+      working-directory: apiMS/microservices/terraform
+      run: |
+        terraform validate
+    
+    - name: 📋 Terraform Plan
+      working-directory: apiMS/microservices/terraform
+      env:
+        TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+        TF_VAR_secret_key: ${{ secrets.SECRET_KEY }}
+        TF_VAR_region: us-central1
+      run: |
+        terraform plan -out=tfplan
+    
+    - name: 🚀 Terraform Apply
+      if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+      working-directory: apiMS/microservices/terraform
+      env:
+        TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+        TF_VAR_secret_key: ${{ secrets.SECRET_KEY }}
+        TF_VAR_region: us-central1
+      run: |
+        terraform apply -auto-approve tfplan
+    
+    - name: 📊 Get Service URLs
+      if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+      working-directory: apiMS/microservices/terraform
+      run: |
+        echo "🔗 URLs de Servicios:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Auth Service: $(terraform output -raw auth_service_url)" >> $GITHUB_STEP_SUMMARY
+        echo "Product Service: $(terraform output -raw product_service_url)" >> $GITHUB_STEP_SUMMARY
+        echo "Order Service: $(terraform output -raw order_service_url)" >> $GITHUB_STEP_SUMMARY
+        echo "Logistics Service: $(terraform output -raw logistics_service_url)" >> $GITHUB_STEP_SUMMARY
+        echo "Notifications Service: $(terraform output -raw notifications_service_url)" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Health Check
+  # ============================================================================
+  health-check:
+    name: Health Check Services
+    needs: deploy
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+    
+    - name: 🔐 Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+    
+    - name: 🐳 Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+    
+    - name: 📦 Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.6.0"
+    
+    - name: 🔧 Terraform Init
+      working-directory: apiMS/microservices/terraform
+      run: terraform init
+    
+    - name: 🏥 Health Check Services
+      working-directory: apiMS/microservices/terraform
+      run: |
+        AUTH_URL=$(terraform output -raw auth_service_url)
+        PRODUCT_URL=$(terraform output -raw product_service_url)
+        ORDER_URL=$(terraform output -raw order_service_url)
+        
+        echo "🔍 Verificando salud de servicios..."
+        
+        curl -f "$AUTH_URL/health" && echo "✅ Auth Service OK" || echo "❌ Auth Service FAILED"
+        curl -f "$PRODUCT_URL/health" && echo "✅ Product Service OK" || echo "❌ Product Service FAILED"
+        curl -f "$ORDER_URL/health" && echo "✅ Order Service OK" || echo "❌ Order Service FAILED"
+
