@@ -39,8 +39,8 @@ def create_app() -> FastAPI:
         title="Product Service",
         description="Microservicio de productos con arquitectura hexagonal",
         version="1.0.0",
-        docs_url="/docs" if settings.environment != "production" else None,
-        redoc_url="/redoc" if settings.environment != "production" else None,
+        docs_url="/docs",  # Habilitar docs en todos los entornos
+        redoc_url="/redoc",  # Habilitar redoc en todos los entornos
         lifespan=lifespan
     )
     
