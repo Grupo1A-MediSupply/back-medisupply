@@ -62,6 +62,7 @@ gcloud services enable \
   artifactregistry.googleapis.com \
   secretmanager.googleapis.com \
   cloudresourcemanager.googleapis.com \
+  sqladmin.googleapis.com \
   --project=$PROJECT_ID
 
 echo -e "${GREEN}✅ APIs habilitadas${NC}"
@@ -94,6 +95,14 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:${SERVICE_ACCOUNT}" \
   --role="roles/iam.serviceAccountUser"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/cloudsql.admin"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/iam.securityAdmin"
 
 echo -e "${GREEN}✅ Permisos asignados${NC}"
 
