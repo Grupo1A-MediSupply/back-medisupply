@@ -18,6 +18,12 @@ NC='\033[0m' # No Color
 PROJECT_ID=$(cd "$(dirname "$0")" && terraform output -raw project_id 2>/dev/null || gcloud config get-value project 2>/dev/null || echo "")
 REGION=$(cd "$(dirname "$0")" && terraform output -raw region 2>/dev/null || echo "us-central1")
 
+# Si PROJECT_ID es un número (Project Number), convertir a Project ID
+if [[ "$PROJECT_ID" =~ ^[0-9]+$ ]]; then
+    echo -e "${YELLOW}⚠️  Detectado Project Number, convirtiendo a Project ID...${NC}"
+    PROJECT_ID=$(gcloud projects describe "$PROJECT_ID" --format="value(projectId)" 2>/dev/null || echo "$PROJECT_ID")
+fi
+
 if [ -z "$PROJECT_ID" ]; then
     echo -e "${RED}Error: No se pudo determinar el PROJECT_ID${NC}"
     exit 1

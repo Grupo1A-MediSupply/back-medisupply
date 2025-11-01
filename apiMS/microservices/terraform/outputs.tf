@@ -2,6 +2,16 @@
 # Outputs de Terraform
 # ==============================================================================
 
+output "project_id" {
+  description = "ID del proyecto GCP"
+  value       = var.project_id
+}
+
+output "region" {
+  description = "Región de GCP"
+  value       = var.region
+}
+
 output "artifact_registry_url" {
   description = "URL del Artifact Registry"
   value       = google_artifact_registry_repository.docker_repo.name
