@@ -539,9 +539,8 @@ resource "google_sql_database_instance" "postgres" {
     # por lo que aunque habilitemos IP pública, no hay exposición pública real
     ip_configuration {
       ipv4_enabled = true # Requerido por Cloud SQL (al menos una opción debe estar habilitada)
-      # Autorizar solo conexiones a través del conector de Cloud SQL (Cloud Run usa socket Unix)
-      authorized_networks = [] # Vacío = solo conexiones autorizadas a través de IAM y socket Unix
-      ssl_mode             = "ALLOW_UNENCRYPTED_AND_ENCRYPTED"
+      # No incluimos authorized_networks, por lo que solo conexiones autorizadas a través de IAM y socket Unix
+      ssl_mode = "ALLOW_UNENCRYPTED_AND_ENCRYPTED"
     }
 
     # Configuración de flags de PostgreSQL
