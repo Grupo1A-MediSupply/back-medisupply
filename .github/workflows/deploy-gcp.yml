@@ -236,8 +236,52 @@ jobs:
           echo "   ℹ️  Secret Manager ($SECRET_ID) no existe, se creará automáticamente"
         fi
         
-        # Importar secretos de base de datos si existen y Cloud SQL está habilitado
+        # Importar secretos de base de datos y Cloud SQL si existen y Cloud SQL está habilitado
         if [ "${TF_VAR_enable_cloud_sql:-true}" != "false" ]; then
+          echo "🗄️  Verificando instancia de Cloud SQL..."
+          
+          # Nombre de la instancia de Cloud SQL
+          INSTANCE_NAME="${PROJECT_ID}-postgres-instance"
+          
+          # Verificar e importar instancia de Cloud SQL si existe
+          if gcloud sql instances describe "$INSTANCE_NAME" --project="$PROJECT_ID" &>/dev/null; then
+            echo "🗄️  Importando instancia de Cloud SQL: $INSTANCE_NAME"
+            terraform import \
+              "google_sql_database_instance.postgres[0]" \
+              "${PROJECT_ID}/${INSTANCE_NAME}" 2>/dev/null || \
+              echo "   ✅ Ya importado o no necesario"
+            
+            # Importar bases de datos si existen
+            echo "📊 Verificando bases de datos..."
+            DATABASES=("auth_service" "product_service" "order_service" "logistics_service" "notifications_service")
+            for DB_NAME in "${DATABASES[@]}"; do
+              if gcloud sql databases describe "$DB_NAME" --instance="$INSTANCE_NAME" --project="$PROJECT_ID" &>/dev/null; then
+                echo "   📊 Importando base de datos: $DB_NAME"
+                case "$DB_NAME" in
+                  "auth_service")
+                    terraform import "google_sql_database.auth_db[0]" "${PROJECT_ID}/${INSTANCE_NAME}/${DB_NAME}" 2>/dev/null || echo "      ✅ Ya importado"
+                    ;;
+                  "product_service")
+                    terraform import "google_sql_database.product_db[0]" "${PROJECT_ID}/${INSTANCE_NAME}/${DB_NAME}" 2>/dev/null || echo "      ✅ Ya importado"
+                    ;;
+                  "order_service")
+                    terraform import "google_sql_database.order_db[0]" "${PROJECT_ID}/${INSTANCE_NAME}/${DB_NAME}" 2>/dev/null || echo "      ✅ Ya importado"
+                    ;;
+                  "logistics_service")
+                    terraform import "google_sql_database.logistics_db[0]" "${PROJECT_ID}/${INSTANCE_NAME}/${DB_NAME}" 2>/dev/null || echo "      ✅ Ya importado"
+                    ;;
+                  "notifications_service")
+                    terraform import "google_sql_database.notifications_db[0]" "${PROJECT_ID}/${INSTANCE_NAME}/${DB_NAME}" 2>/dev/null || echo "      ✅ Ya importado"
+                    ;;
+                esac
+              else
+                echo "   ℹ️  Base de datos ($DB_NAME) no existe, se creará automáticamente"
+              fi
+            done
+          else
+            echo "   ℹ️  Instancia de Cloud SQL ($INSTANCE_NAME) no existe, se creará automáticamente"
+          fi
+          
           echo "🔐 Verificando secretos de base de datos..."
           
           # Lista de secretos de base de datos
