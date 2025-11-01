@@ -84,12 +84,36 @@ done
 echo ""
 echo -e "${GREEN}✅ Actualización de permisos completada!${NC}"
 echo ""
-echo "📋 Roles asignados al Service Account:"
+echo "📋 Verificando permisos actuales del Service Account..."
 echo ""
+
+# Verificar permisos actuales
+CURRENT_ROLES=$(gcloud projects get-iam-policy $PROJECT_ID \
+  --flatten="bindings[].members" \
+  --format="value(bindings.role)" \
+  --filter="bindings.members:serviceAccount:${SERVICE_ACCOUNT_EMAIL}" 2>/dev/null || echo "")
+
+echo "📊 Roles actuales del Service Account:"
+if [ -z "$CURRENT_ROLES" ]; then
+    echo -e "   ${YELLOW}⚠️  No se pudieron verificar los roles actuales${NC}"
+else
+    echo "$CURRENT_ROLES" | while read -r role; do
+        echo "   ✅ $role"
+    done
+fi
+
+echo ""
+echo "📋 Roles que debería tener:"
 for ROLE in "${ROLES[@]}"; do
-    echo "   - $ROLE"
+    if echo "$CURRENT_ROLES" | grep -q "^$ROLE$" 2>/dev/null; then
+        echo -e "   ${GREEN}✅ $ROLE${NC} (asignado)"
+    else
+        echo -e "   ${RED}❌ $ROLE${NC} (faltante)"
+    fi
 done
+
 echo ""
-echo "💡 Si este Service Account se usa en GitHub Actions, los cambios surtirán efecto en el próximo despliegue."
+echo "💡 Si este Service Account se usa en GitHub Actions, espera 1-2 minutos para que los cambios se propaguen."
+echo "   Luego ejecuta nuevamente el workflow."
 echo ""
 
