@@ -1,9 +1,8 @@
 """
 Script para ejecutar el microservicio de autenticación
 """
-import sys
-import os
-from pathlib import Path
+import uvicorn
+from main import app
 
 # Configurar el PYTHONPATH correctamente
 current_dir = Path(__file__).parent
@@ -28,9 +27,9 @@ if __name__ == "__main__":
     
     # Ejecutar como módulo Python desde el directorio microservices
     uvicorn.run(
-        "auth-service.main:app",
+        app,
         host="0.0.0.0",
         port=8001,
-        reload=True
+        reload=False
     )
 

@@ -47,8 +47,8 @@ def create_app() -> FastAPI:
         title="Auth Service",
         description="Microservicio de autenticación con arquitectura hexagonal",
         version="1.0.0",
-        docs_url="/docs" if settings.environment != "production" else None,
-        redoc_url="/redoc" if settings.environment != "production" else None,
+        docs_url="/docs",  # Habilitar docs en todos los entornos
+        redoc_url="/redoc",  # Habilitar redoc en todos los entornos
         lifespan=lifespan
     )
     
@@ -63,6 +63,8 @@ def create_app() -> FastAPI:
     
     # Incluir routers
     app.include_router(router, prefix="/api/v1", tags=["authentication"])
+    # También exponer en formato /api para compatibilidad con contrato Postman
+    app.include_router(router, prefix="/api", tags=["authentication"])
     
     @app.get("/")
     async def root():

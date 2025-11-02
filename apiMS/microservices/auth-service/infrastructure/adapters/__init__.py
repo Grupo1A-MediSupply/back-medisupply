@@ -22,26 +22,63 @@ except ImportError:
 class BcryptPasswordHasher(IPasswordHasher):
     """Adaptador para hashear contraseñas con bcrypt"""
     
+    # Bcrypt tiene una limitación de 72 bytes para las contraseñas
+    MAX_PASSWORD_BYTES = 72
+    
     def __init__(self):
+        # Configurar CryptContext para bcrypt
+        # Usar 'bcrypt' scheme
+        # Nota: passlib valida internamente antes de hashear, por lo que
+        # debemos truncar la contraseña ANTES de pasarla a hash()
         self.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     
+    def _truncate_password(self, password: str) -> str:
+        """Trunca la contraseña a 72 bytes de forma segura
+        
+        Nota: Bcrypt limita las contraseñas a 72 bytes. Para evitar problemas
+        con passlib que valida antes de hashear, truncamos siempre si es necesario.
+        """
+        password_bytes = password.encode('utf-8')
+        
+        # Truncar a 72 bytes si es necesario
+        # Usamos 72 bytes exactos porque ese es el límite de bcrypt
+        if len(password_bytes) > self.MAX_PASSWORD_BYTES:
+            truncated = password_bytes[:self.MAX_PASSWORD_BYTES]
+            return truncated.decode('utf-8', errors='ignore')
+        
+        return password
+    
     def hash_password(self, plain_password: str) -> str:
-        """Hashear contraseña"""
-        # Truncar contraseña a 72 bytes máximo para compatibilidad con bcrypt
-        if len(plain_password.encode('utf-8')) > 72:
-            # Truncar a 72 bytes, no caracteres
-            password_bytes = plain_password.encode('utf-8')[:72]
-            plain_password = password_bytes.decode('utf-8', errors='ignore')
-        return self.pwd_context.hash(plain_password)
+        """Hashear contraseña
+        
+        Nota: Bcrypt tiene una limitación de 72 bytes. Si la contraseña
+        excede este límite, se trunca automáticamente antes de hashearla.
+        """
+        # Siempre truncar primero para evitar errores de passlib
+        truncated_password = self._truncate_password(plain_password)
+        
+        try:
+            return self.pwd_context.hash(truncated_password)
+        except Exception as e:
+            # Si aún hay error, intentar truncar más agresivamente
+            error_str = str(e).lower()
+            if "72" in error_str or "bytes" in error_str or "longer" in error_str:
+                # Truncar a 70 bytes para estar seguros
+                password_bytes = truncated_password.encode('utf-8')[:70]
+                safe_password = password_bytes.decode('utf-8', errors='ignore')
+                return self.pwd_context.hash(safe_password)
+            raise
     
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """Verificar contraseña"""
-        # Truncar contraseña a 72 bytes máximo para compatibilidad con bcrypt
-        if len(plain_password.encode('utf-8')) > 72:
-            # Truncar a 72 bytes, no caracteres
-            password_bytes = plain_password.encode('utf-8')[:72]
-            plain_password = password_bytes.decode('utf-8', errors='ignore')
-        return self.pwd_context.verify(plain_password, hashed_password)
+        """Verificar contraseña
+        
+        Nota: Si la contraseña original fue truncada al registrarse,
+        también debe truncarse aquí para verificación.
+        """
+        # Truncar usando el mismo método que en hash_password
+        truncated_password = self._truncate_password(plain_password)
+        
+        return self.pwd_context.verify(truncated_password, hashed_password)
 
 
 class JWTTokenService(ITokenService):

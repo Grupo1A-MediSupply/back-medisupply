@@ -56,25 +56,183 @@ jobs:
         export PYTHONPATH=$(pwd)
         pytest product-service/tests/unit/ -v --tb=short
     
+    - name: 🧪 Ejecutar tests - Order Service
+      run: |
+        cd apiMS/microservices
+        echo "════════════════════════════════════════════════"
+        echo "📋 Order Service - Tests Unitarios"
+        echo "════════════════════════════════════════════════"
+        # Configurar PYTHONPATH para importaciones correctas
+        export PYTHONPATH=$(pwd)
+        pytest order-service/tests/unit/test_commands_queries.py -v --tb=short
+    
+    - name: 🧪 Ejecutar tests - Logistics Service
+      run: |
+        cd apiMS/microservices
+        echo "════════════════════════════════════════════════"
+        echo "🚚 Logistics Service - Tests Unitarios"
+        echo "════════════════════════════════════════════════"
+        # Configurar PYTHONPATH para importaciones correctas
+        export PYTHONPATH=$(pwd)
+        pytest logistics-service/tests/unit/test_commands_queries.py -v --tb=short
+    
+    - name: 🧪 Ejecutar tests - Notifications Service
+      run: |
+        cd apiMS/microservices
+        echo "════════════════════════════════════════════════"
+        echo "🔔 Notifications Service - Tests Unitarios"
+        echo "════════════════════════════════════════════════"
+        # Configurar PYTHONPATH para importaciones correctas
+        export PYTHONPATH=$(pwd)
+        pytest notifications-service/tests/unit/test_entities.py notifications-service/tests/unit/test_routes.py -v --tb=short
+    
+    - name: 🧪 Ejecutar tests - Shared
+      run: |
+        cd apiMS/microservices
+        echo "════════════════════════════════════════════════"
+        echo "🔗 Shared - Tests Unitarios"
+        echo "════════════════════════════════════════════════"
+        # Configurar PYTHONPATH para importaciones correctas
+        export PYTHONPATH=$(pwd)
+        pytest shared/tests/unit/ -v --tb=short
+    
     - name: 📊 Generar reporte de cobertura
       run: |
         cd apiMS/microservices
         # Configurar PYTHONPATH para importaciones correctas
         export PYTHONPATH=$(pwd)
         # Ejecutar cobertura por separado para evitar conflictos conftest
+        # Validar cobertura solo sobre los módulos específicos probados
+        
         echo "🔐 Generando cobertura Auth Service..."
         pytest auth-service/tests/unit/test_value_objects.py auth-service/tests/unit/test_entities.py \
           --cov=auth-service/domain \
           --cov-report=xml \
           --cov-report=html \
-          --cov-report=term-missing
+          --cov-report=term-missing --quiet
+        
+        # Validar cobertura solo para auth-service/domain
+        AUTH_COV=$(coverage report --include="auth-service/domain/*" 2>/dev/null | grep "TOTAL" | awk '{print $NF}' | sed 's/%//' || echo "0")
+        if [ -n "$AUTH_COV" ] && [ "$AUTH_COV" != "0" ]; then
+          AUTH_INT=${AUTH_COV%.*}
+          if [ "$AUTH_INT" -lt 70 ] 2>/dev/null; then
+            echo "⚠️  Auth Service Domain: ${AUTH_COV}% (menor al 70% requerido)"
+          else
+            echo "✅ Auth Service Domain: ${AUTH_COV}%"
+          fi
+        else
+          echo "⚠️  No se pudo calcular cobertura para Auth Service Domain"
+        fi
+        
         echo "📦 Generando cobertura Product Service..."
         pytest product-service/tests/unit/ \
           --cov=product-service/domain \
           --cov-append \
           --cov-report=xml \
           --cov-report=html \
-          --cov-report=term-missing
+          --cov-report=term-missing --quiet
+        
+        # Validar cobertura solo para product-service/domain
+        PROD_COV=$(coverage report --include="product-service/domain/*" 2>/dev/null | grep "TOTAL" | awk '{print $NF}' | sed 's/%//' || echo "0")
+        if [ -n "$PROD_COV" ] && [ "$PROD_COV" != "0" ]; then
+          PROD_INT=${PROD_COV%.*}
+          if [ "$PROD_INT" -lt 70 ] 2>/dev/null; then
+            echo "⚠️  Product Service Domain: ${PROD_COV}% (menor al 70% requerido)"
+          else
+            echo "✅ Product Service Domain: ${PROD_COV}%"
+          fi
+        else
+          echo "⚠️  No se pudo calcular cobertura para Product Service Domain"
+        fi
+        
+        echo "📋 Generando cobertura Order Service..."
+        pytest order-service/tests/unit/test_commands_queries.py \
+          --cov=order-service/application \
+          --cov-append \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing --quiet
+        
+        # Validar cobertura solo para order-service/application
+        ORDER_COV=$(coverage report --include="order-service/application/*" 2>/dev/null | grep "TOTAL" | awk '{print $NF}' | sed 's/%//' || echo "0")
+        if [ -n "$ORDER_COV" ] && [ "$ORDER_COV" != "0" ]; then
+          ORDER_INT=${ORDER_COV%.*}
+          if [ "$ORDER_INT" -lt 70 ] 2>/dev/null; then
+            echo "⚠️  Order Service Application: ${ORDER_COV}% (menor al 70% requerido)"
+          else
+            echo "✅ Order Service Application: ${ORDER_COV}%"
+          fi
+        else
+          echo "⚠️  No se pudo calcular cobertura para Order Service Application"
+        fi
+        
+        echo "🚚 Generando cobertura Logistics Service..."
+        pytest logistics-service/tests/unit/test_commands_queries.py \
+          --cov=logistics-service/application \
+          --cov-append \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing --quiet
+        
+        # Validar cobertura solo para logistics-service/application
+        LOG_COV=$(coverage report --include="logistics-service/application/*" 2>/dev/null | grep "TOTAL" | awk '{print $NF}' | sed 's/%//' || echo "0")
+        if [ -n "$LOG_COV" ] && [ "$LOG_COV" != "0" ]; then
+          LOG_INT=${LOG_COV%.*}
+          if [ "$LOG_INT" -lt 70 ] 2>/dev/null; then
+            echo "⚠️  Logistics Service Application: ${LOG_COV}% (menor al 70% requerido)"
+          else
+            echo "✅ Logistics Service Application: ${LOG_COV}%"
+          fi
+        else
+          echo "⚠️  No se pudo calcular cobertura para Logistics Service Application"
+        fi
+        
+        echo "🔔 Generando cobertura Notifications Service..."
+        pytest notifications-service/tests/unit/test_entities.py notifications-service/tests/unit/test_routes.py \
+          --cov=notifications-service/domain \
+          --cov=notifications-service/api \
+          --cov-append \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing --quiet
+        
+        # Validar cobertura solo para notifications-service
+        NOTIF_COV=$(coverage report --include="notifications-service/domain/*" --include="notifications-service/api/*" 2>/dev/null | grep "TOTAL" | awk '{print $NF}' | sed 's/%//' || echo "0")
+        if [ -n "$NOTIF_COV" ] && [ "$NOTIF_COV" != "0" ]; then
+          NOTIF_INT=${NOTIF_COV%.*}
+          if [ "$NOTIF_INT" -lt 70 ] 2>/dev/null; then
+            echo "⚠️  Notifications Service: ${NOTIF_COV}% (menor al 70% requerido)"
+          else
+            echo "✅ Notifications Service: ${NOTIF_COV}%"
+          fi
+        else
+          echo "⚠️  No se pudo calcular cobertura para Notifications Service"
+        fi
+        
+        echo "🔗 Generando cobertura Shared..."
+        pytest shared/tests/unit/ \
+          --cov=shared/domain \
+          --cov-append \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing --quiet
+        
+        # Validar cobertura solo para shared/domain
+        SHARED_COV=$(coverage report --include="shared/domain/*" 2>/dev/null | grep "TOTAL" | awk '{print $NF}' | sed 's/%//' || echo "0")
+        if [ -n "$SHARED_COV" ] && [ "$SHARED_COV" != "0" ]; then
+          SHARED_INT=${SHARED_COV%.*}
+          if [ "$SHARED_INT" -lt 70 ] 2>/dev/null; then
+            echo "⚠️  Shared Domain: ${SHARED_COV}% (menor al 70% requerido)"
+          else
+            echo "✅ Shared Domain: ${SHARED_COV}%"
+          fi
+        else
+          echo "⚠️  No se pudo calcular cobertura para Shared Domain"
+        fi
+        
+        echo ""
+        echo "📊 Resumen de cobertura por módulo:"
+        coverage report --include="auth-service/domain/*" --include="product-service/domain/*" --include="order-service/application/*" --include="logistics-service/application/*" --include="notifications-service/domain/*" --include="notifications-service/api/*" --include="shared/domain/*" 2>/dev/null | tail -10 || true
     
     - name: 📤 Subir reporte de cobertura
       uses: codecov/codecov-action@v4
@@ -102,13 +260,17 @@ jobs:
         echo "╚══════════════════════════════════════════════════════════════╝"
         echo ""
         echo "📊 Resultados:"
-        echo "✅ Auth Service - Value Objects: 20 tests"
-        echo "✅ Auth Service - Entities: 13 tests"
-        echo "✅ Product Service - Value Objects: 21 tests"
-        echo "✅ Product Service - Entities: 13 tests"
+        echo "✅ Auth Service: 33 tests (Value Objects + Entities)"
+        echo "✅ Product Service: 34 tests (Value Objects + Entities)"
+        echo "✅ Order Service: 15 tests (Commands & Queries)"
+        echo "✅ Logistics Service: 11 tests (Commands & Queries)"
+        echo "✅ Notifications Service: 6 tests (Entities + Routes)"
+        echo "✅ Shared: 5 tests (Value Objects + Entity Base)"
         echo ""
-        echo "Total: 67 tests unitarios"
+        echo "════════════════════════════════════════════════════════════════"
+        echo "📊 TOTAL: 104 tests unitarios"
         echo "Versión Python: ${{ matrix.python-version }}"
+        echo "════════════════════════════════════════════════════════════════"
         echo ""
         echo "🎉 Pipeline completado!"
 

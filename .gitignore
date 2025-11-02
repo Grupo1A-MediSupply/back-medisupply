@@ -176,3 +176,18 @@ codigoV3/
 # Documentation files - ignore all .md files except README.md
 *.md
 !README.md
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars
+terraform-key.json
+*.tfvars
+!terraform.tfvars.example
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
