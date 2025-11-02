@@ -5,8 +5,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from .config import get_settings
-from .repositories import Base
+try:
+    from .config import get_settings
+    from .repositories import Base
+except ImportError:
+    from infrastructure.config import get_settings
+    from infrastructure.repositories import Base
 
 settings = get_settings()
 

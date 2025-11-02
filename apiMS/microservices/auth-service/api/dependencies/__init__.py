@@ -14,6 +14,8 @@ if shared_path not in sys.path:
 from ...infrastructure.database import get_db
 from ...infrastructure.repositories import SQLAlchemyUserRepository
 from ...infrastructure.adapters import BcryptPasswordHasher, JWTTokenService
+from ...infrastructure.verification_code_repository import VerificationCodeRepository
+from ...infrastructure.email_service import email_service
 from ...infrastructure.config import get_settings
 from ...application.handlers import (
     RegisterUserCommandHandler,
@@ -25,7 +27,8 @@ from ...application.handlers import (
     GetUserByIdQueryHandler,
     GetUserByUsernameQueryHandler,
     GetCurrentUserQueryHandler,
-    VerifyTokenQueryHandler
+    VerifyTokenQueryHandler,
+    VerifyCodeCommandHandler
 )
 
 settings = get_settings()
@@ -35,6 +38,11 @@ settings = get_settings()
 def get_user_repository(db: Session = Depends(get_db)) -> SQLAlchemyUserRepository:
     """Obtener repositorio de usuarios"""
     return SQLAlchemyUserRepository(db)
+
+
+def get_verification_code_repository(db: Session = Depends(get_db)) -> VerificationCodeRepository:
+    """Obtener repositorio de códigos de verificación"""
+    return VerificationCodeRepository(db)
 
 
 # Adaptadores
@@ -64,10 +72,10 @@ def get_register_user_handler(
 def get_login_handler(
     user_repository: SQLAlchemyUserRepository = Depends(get_user_repository),
     password_hasher: BcryptPasswordHasher = Depends(get_password_hasher),
-    token_service: JWTTokenService = Depends(get_token_service)
+    verification_code_repository: VerificationCodeRepository = Depends(get_verification_code_repository)
 ) -> LoginCommandHandler:
     """Obtener handler de login"""
-    return LoginCommandHandler(user_repository, password_hasher, token_service)
+    return LoginCommandHandler(user_repository, password_hasher, verification_code_repository, email_service)
 
 
 def get_refresh_token_handler(
@@ -128,4 +136,12 @@ def get_verify_token_handler(
 ) -> VerifyTokenQueryHandler:
     """Obtener handler de verificación de token"""
     return VerifyTokenQueryHandler(token_service)
+
+
+def get_verify_code_handler(
+    verification_code_repository: VerificationCodeRepository = Depends(get_verification_code_repository),
+    token_service: JWTTokenService = Depends(get_token_service)
+) -> VerifyCodeCommandHandler:
+    """Obtener handler de verificación de código"""
+    return VerifyCodeCommandHandler(verification_code_repository, token_service)
 

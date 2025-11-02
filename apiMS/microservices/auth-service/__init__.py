@@ -1,4 +1,1 @@
-"""
-Microservicio de Autenticación
-"""
-
+# Auth Service Package

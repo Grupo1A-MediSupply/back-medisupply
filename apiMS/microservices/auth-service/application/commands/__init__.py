@@ -51,6 +51,7 @@ class UpdateProfileCommand:
     """Comando para actualizar perfil"""
     user_id: str
     full_name: Optional[str] = None
+    phone_number: Optional[str] = None
 
 
 @dataclass

@@ -62,7 +62,7 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     """Request para login"""
     username: str
-    password: str
+    password: str = Field(..., max_length=100)
 
 
 class RefreshTokenRequest(BaseModel):
@@ -77,12 +77,21 @@ class TokenResponse(BaseModel):
     token_type: str
 
 
+class LoginResponse(BaseModel):
+    """Response de login"""
+    message: str
+    user_id: str
+    email: str
+    requires_verification: bool
+
+
 class UserResponse(BaseModel):
     """Response de usuario"""
     id: str
     email: str
     username: str
     full_name: Optional[str]
+    phone_number: Optional[str]
     is_active: bool
     is_superuser: bool
     created_at: datetime
@@ -157,6 +166,7 @@ async def register(
             email=str(user.email),
             username=str(user.username),
             full_name=str(user.full_name) if user.full_name else None,
+            phone_number=str(user.phone_number) if user.phone_number else None,
             is_active=user.is_active,
             is_superuser=user.is_superuser,
             created_at=user.created_at,
@@ -207,6 +217,9 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"}
         )
     except Exception as e:
+        print(f"Error en endpoint login: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error interno del servidor"
@@ -336,6 +349,7 @@ async def get_current_user(
             email=str(user.email),
             username=str(user.username),
             full_name=str(user.full_name) if user.full_name else None,
+            phone_number=str(user.phone_number) if user.phone_number else None,
             is_active=user.is_active,
             is_superuser=user.is_superuser,
             created_at=user.created_at,
@@ -442,6 +456,7 @@ async def get_user_by_id(
             email=str(user.email),
             username=str(user.username),
             full_name=str(user.full_name) if user.full_name else None,
+            phone_number=str(user.phone_number) if user.phone_number else None,
             is_active=user.is_active,
             is_superuser=user.is_superuser,
             created_at=user.created_at,

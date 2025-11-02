@@ -1,9 +1,9 @@
 """
-Repositorios de infraestructura
+Repositorios de infraestructura - Versión corregida
 """
 from typing import Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import Column, String, Boolean, DateTime
+from sqlalchemy import Column, String, Boolean, DateTime, Integer
 from sqlalchemy.ext.declarative import declarative_base
 import sys
 from pathlib import Path
@@ -12,11 +12,22 @@ from pathlib import Path
 shared_path = str(Path(__file__).parent.parent.parent.parent / "shared")
 if shared_path not in sys.path:
     sys.path.insert(0, shared_path)
+    print(f"Added shared path: {shared_path}")
+
+# Agregar el directorio del auth-service al PYTHONPATH
+auth_service_path = str(Path(__file__).parent.parent.parent)
+if auth_service_path not in sys.path:
+    sys.path.insert(0, auth_service_path)
 
 from shared.domain.value_objects import EntityId, Email
-from ...domain.entities import User
-from ...domain.value_objects import Username, HashedPassword, FullName
-from ...domain.ports import IUserRepository
+try:
+    from ...domain.entities import User
+    from ...domain.value_objects import Username, HashedPassword, FullName, PhoneNumber
+    from ...domain.ports import IUserRepository
+except ImportError:
+    from domain.entities import User
+    from domain.value_objects import Username, HashedPassword, FullName, PhoneNumber
+    from domain.ports import IUserRepository
 
 Base = declarative_base()
 
@@ -29,11 +40,25 @@ class UserModel(Base):
     email = Column(String, unique=True, nullable=False, index=True)
     username = Column(String, unique=True, nullable=False, index=True)
     full_name = Column(String, nullable=True)
+    phone_number = Column(String, nullable=True)
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
     created_at = Column(DateTime, nullable=False)
     updated_at = Column(DateTime, nullable=False)
+
+
+class VerificationCodeModel(Base):
+    """Modelo de base de datos para códigos de verificación"""
+    __tablename__ = "verification_codes"
+    
+    id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False, index=True)
+    code = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    is_used = Column(Boolean, default=False)
+    created_at = Column(DateTime, nullable=False)
 
 
 class SQLAlchemyUserRepository(IUserRepository):
@@ -50,6 +75,7 @@ class SQLAlchemyUserRepository(IUserRepository):
             username=Username(model.username),
             hashed_password=HashedPassword(model.hashed_password),
             full_name=FullName(model.full_name) if model.full_name else None,
+            phone_number=PhoneNumber(model.phone_number) if model.phone_number else None,
             is_active=model.is_active,
             is_superuser=model.is_superuser
         )
@@ -62,6 +88,7 @@ class SQLAlchemyUserRepository(IUserRepository):
             username=str(user.username),
             hashed_password=str(user.hashed_password),
             full_name=str(user.full_name) if user.full_name else None,
+            phone_number=str(user.phone_number) if user.phone_number else None,
             is_active=user.is_active,
             is_superuser=user.is_superuser,
             created_at=user.created_at,
@@ -81,6 +108,7 @@ class SQLAlchemyUserRepository(IUserRepository):
             existing.username = str(user.username)
             existing.hashed_password = str(user.hashed_password)
             existing.full_name = str(user.full_name) if user.full_name else None
+            existing.phone_number = str(user.phone_number) if user.phone_number else None
             existing.is_active = user.is_active
             existing.is_superuser = user.is_superuser
             existing.updated_at = user.updated_at
@@ -150,4 +178,3 @@ class SQLAlchemyUserRepository(IUserRepository):
             return True
         
         return False
-

@@ -13,7 +13,10 @@ shared_path = str(Path(__file__).parent.parent.parent.parent / "shared")
 if shared_path not in sys.path:
     sys.path.insert(0, shared_path)
 
-from ...domain.ports import IPasswordHasher, ITokenService
+try:
+    from ...domain.ports import IPasswordHasher, ITokenService
+except ImportError:
+    from domain.ports import IPasswordHasher, ITokenService
 
 
 class BcryptPasswordHasher(IPasswordHasher):
