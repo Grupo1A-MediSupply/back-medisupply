@@ -13,7 +13,7 @@ if shared_path not in sys.path:
 
 from shared.domain.entity import Entity
 from shared.domain.value_objects import EntityId, Email
-from ..value_objects import Username, HashedPassword, FullName
+from ..value_objects import Username, HashedPassword, FullName, PhoneNumber
 from ..events import UserRegisteredEvent, UserLoggedInEvent, UserDeactivatedEvent
 
 
@@ -27,6 +27,7 @@ class User(Entity):
         username: Username,
         hashed_password: HashedPassword,
         full_name: Optional[FullName] = None,
+        phone_number: Optional[PhoneNumber] = None,
         is_active: bool = True,
         is_superuser: bool = False
     ):
@@ -35,6 +36,7 @@ class User(Entity):
         self._username = username
         self._hashed_password = hashed_password
         self._full_name = full_name
+        self._phone_number = phone_number
         self._is_active = is_active
         self._is_superuser = is_superuser
     
@@ -53,6 +55,10 @@ class User(Entity):
     @property
     def full_name(self) -> Optional[FullName]:
         return self._full_name
+    
+    @property
+    def phone_number(self) -> Optional[PhoneNumber]:
+        return self._phone_number
     
     @property
     def is_active(self) -> bool:
@@ -84,10 +90,12 @@ class User(Entity):
         self._is_active = True
         self._updated_at = datetime.utcnow()
     
-    def update_profile(self, full_name: Optional[FullName] = None):
+    def update_profile(self, full_name: Optional[FullName] = None, phone_number: Optional[PhoneNumber] = None):
         """Actualizar perfil del usuario"""
         if full_name:
             self._full_name = full_name
+        if phone_number:
+            self._phone_number = phone_number
         self._updated_at = datetime.utcnow()
     
     @staticmethod
@@ -97,6 +105,7 @@ class User(Entity):
         username: Username,
         hashed_password: HashedPassword,
         full_name: Optional[FullName] = None,
+        phone_number: Optional[PhoneNumber] = None,
         is_active: bool = True,
         is_superuser: bool = False
     ) -> 'User':
@@ -107,6 +116,7 @@ class User(Entity):
             username=username,
             hashed_password=hashed_password,
             full_name=full_name,
+            phone_number=phone_number,
             is_active=is_active,
             is_superuser=is_superuser
         )

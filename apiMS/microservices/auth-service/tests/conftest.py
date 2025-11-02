@@ -126,3 +126,23 @@ def mock_event_bus():
         mock_bus.publish = AsyncMock()
         yield mock_bus
 
+
+@pytest.fixture
+def mock_verification_code_repository():
+    """Mock del repositorio de códigos de verificación"""
+    repository = Mock()
+    repository.get_valid_code = AsyncMock()
+    repository.mark_code_as_used = AsyncMock()
+    repository.create_verification_code = AsyncMock()
+    repository.db = Mock()
+    repository.db.commit = Mock()
+    return repository
+
+
+@pytest.fixture
+def mock_email_service():
+    """Mock del servicio de email"""
+    service = Mock()
+    service.generate_verification_code = Mock(return_value="123456")
+    service.send_verification_code = AsyncMock(return_value=True)
+    return service

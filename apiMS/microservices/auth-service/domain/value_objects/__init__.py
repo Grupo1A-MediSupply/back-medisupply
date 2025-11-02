@@ -44,3 +44,21 @@ class FullName:
     def __str__(self) -> str:
         return self.value or ""
 
+
+@dataclass(frozen=True)
+class PhoneNumber:
+    """Value Object para número de teléfono"""
+    value: str
+    
+    def __post_init__(self):
+        if not self.value:
+            raise ValueError("El número de teléfono no puede estar vacío")
+        
+        # Validar formato básico de teléfono (números, +, -, espacios, paréntesis)
+        import re
+        phone_pattern = r'^[\+]?[0-9\s\-\(\)]{7,15}$'
+        if not re.match(phone_pattern, self.value):
+            raise ValueError("El formato del número de teléfono no es válido")
+    
+    def __str__(self) -> str:
+        return self.value

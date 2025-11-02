@@ -11,7 +11,9 @@ class RegisterUserCommand:
     email: str
     username: str
     password: str
+    confirm_password: str
     full_name: Optional[str] = None
+    phone_number: Optional[str] = None
     is_active: bool = True
     is_superuser: bool = False
 
@@ -48,4 +50,11 @@ class UpdateProfileCommand:
     """Comando para actualizar perfil"""
     user_id: str
     full_name: Optional[str] = None
+    phone_number: Optional[str] = None
 
+
+@dataclass
+class VerifyCodeCommand:
+    """Comando para verificar código de autenticación"""
+    user_id: str
+    code: str

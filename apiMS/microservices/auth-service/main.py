@@ -5,10 +5,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from .infrastructure.config import get_settings
-from .infrastructure.database import create_tables
-from .api.routes import router
-from .application.services import UserEventHandler, setup_event_handlers
+try:
+    # Imports relativos (cuando se ejecuta como módulo)
+    from .infrastructure.config import get_settings
+    from .infrastructure.database import create_tables
+    from .api.routes import router
+    from .application.services import UserEventHandler, setup_event_handlers
+except ImportError:
+    # Imports absolutos (cuando se ejecuta directamente)
+    from infrastructure.config import get_settings
+    from infrastructure.database import create_tables
+    from api.routes import router
+    from application.services import UserEventHandler, setup_event_handlers
 
 settings = get_settings()
 
