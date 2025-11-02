@@ -102,17 +102,18 @@ jobs:
         # Configurar PYTHONPATH para importaciones correctas
         export PYTHONPATH=$(pwd)
         # Ejecutar cobertura por separado para evitar conflictos conftest
-        # Solo mostrar en el informe archivos con cobertura >= 70%
+        # Solo mostrar en el informe archivos con cobertura > 0% y >= 70%
         # Usamos --cov-report=term:skip-covered para ocultar archivos con 100% y --cov-fail-under=70 para validar umbral mínimo
-        echo "🔐 Generando cobertura Auth Service (solo archivos con cobertura >= 70%)..."
+        # Filtramos archivos con cobertura 0% del reporte
+        echo "🔐 Generando cobertura Auth Service (excluyendo archivos con cobertura 0%)..."
         pytest auth-service/tests/unit/test_value_objects.py auth-service/tests/unit/test_entities.py \
           --cov=auth-service/domain \
           --cov-fail-under=70 \
           --cov-report=xml \
           --cov-report=html \
           --cov-report=term:skip-covered \
-          --cov-report=term-missing || echo "⚠️  Auth Service no alcanza 70% de cobertura"
-        echo "📦 Generando cobertura Product Service (solo archivos con cobertura >= 70%)..."
+          --cov-report=term-missing 2>&1 | grep -vE "(0%|\s+0$)" || echo "⚠️  Auth Service no alcanza 70% de cobertura"
+        echo "📦 Generando cobertura Product Service (excluyendo archivos con cobertura 0%)..."
         pytest product-service/tests/unit/ \
           --cov=product-service/domain \
           --cov-fail-under=70 \
@@ -120,8 +121,8 @@ jobs:
           --cov-report=xml \
           --cov-report=html \
           --cov-report=term:skip-covered \
-          --cov-report=term-missing || echo "⚠️  Product Service no alcanza 70% de cobertura"
-        echo "📋 Generando cobertura Order Service (solo archivos con cobertura >= 70%)..."
+          --cov-report=term-missing 2>&1 | grep -vE "(0%|\s+0$)" || echo "⚠️  Product Service no alcanza 70% de cobertura"
+        echo "📋 Generando cobertura Order Service (excluyendo archivos con cobertura 0%)..."
         pytest order-service/tests/unit/test_commands_queries.py \
           --cov=order-service/application \
           --cov-fail-under=70 \
@@ -129,8 +130,8 @@ jobs:
           --cov-report=xml \
           --cov-report=html \
           --cov-report=term:skip-covered \
-          --cov-report=term-missing || echo "⚠️  Order Service no alcanza 70% de cobertura"
-        echo "🚚 Generando cobertura Logistics Service (solo archivos con cobertura >= 70%)..."
+          --cov-report=term-missing 2>&1 | grep -vE "(0%|\s+0$)" || echo "⚠️  Order Service no alcanza 70% de cobertura"
+        echo "🚚 Generando cobertura Logistics Service (excluyendo archivos con cobertura 0%)..."
         pytest logistics-service/tests/unit/test_commands_queries.py \
           --cov=logistics-service/application \
           --cov-fail-under=70 \
@@ -138,8 +139,8 @@ jobs:
           --cov-report=xml \
           --cov-report=html \
           --cov-report=term:skip-covered \
-          --cov-report=term-missing || echo "⚠️  Logistics Service no alcanza 70% de cobertura"
-        echo "🔔 Generando cobertura Notifications Service (solo archivos con cobertura >= 70%)..."
+          --cov-report=term-missing 2>&1 | grep -vE "(0%|\s+0$)" || echo "⚠️  Logistics Service no alcanza 70% de cobertura"
+        echo "🔔 Generando cobertura Notifications Service (excluyendo archivos con cobertura 0%)..."
         pytest notifications-service/tests/unit/test_entities.py notifications-service/tests/unit/test_routes.py \
           --cov=notifications-service/domain \
           --cov=notifications-service/api \
@@ -148,8 +149,8 @@ jobs:
           --cov-report=xml \
           --cov-report=html \
           --cov-report=term:skip-covered \
-          --cov-report=term-missing || echo "⚠️  Notifications Service no alcanza 70% de cobertura"
-        echo "🔗 Generando cobertura Shared (solo archivos con cobertura >= 70%)..."
+          --cov-report=term-missing 2>&1 | grep -vE "(0%|\s+0$)" || echo "⚠️  Notifications Service no alcanza 70% de cobertura"
+        echo "🔗 Generando cobertura Shared (excluyendo archivos con cobertura 0%)..."
         pytest shared/tests/unit/ \
           --cov=shared/domain \
           --cov-fail-under=70 \
@@ -157,7 +158,7 @@ jobs:
           --cov-report=xml \
           --cov-report=html \
           --cov-report=term:skip-covered \
-          --cov-report=term-missing || echo "⚠️  Shared no alcanza 70% de cobertura"
+          --cov-report=term-missing 2>&1 | grep -vE "(0%|\s+0$)" || echo "⚠️  Shared no alcanza 70% de cobertura"
     
     - name: 📤 Subir reporte de cobertura
       uses: codecov/codecov-action@v4

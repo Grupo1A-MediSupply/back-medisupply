@@ -3,7 +3,7 @@ name: 🚀 Deploy to GCP Cloud Run
 on:
   push:
     branches:
-      - '**'  # Cualquier rama
+      - main # Cualquier rama
   pull_request:
     branches:
       - main
