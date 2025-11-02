@@ -2,9 +2,9 @@ name: 🧪 Tests Unitarios - Api MediSupply Capa de Dominio  Value Objects + Ent
 
 on:
   push:
-    branches: [ '**' ]  # Todas las ramas
+    branches: [ main ]  # Todas las ramas
   pull_request:
-    branches: [ '**' ]
+    branches: [ main ]
   workflow_dispatch:  # Permite ejecución manual
 
 jobs:

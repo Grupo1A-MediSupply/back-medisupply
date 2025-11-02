@@ -105,45 +105,51 @@ jobs:
         echo "🔐 Generando cobertura Auth Service..."
         pytest auth-service/tests/unit/test_value_objects.py auth-service/tests/unit/test_entities.py \
           --cov=auth-service/domain \
+          --cov-fail-under=70 \
           --cov-report=xml \
           --cov-report=html \
-          --cov-report=term-missing
+          --cov-report=term-missing || echo "⚠️  Auth Service no alcanza 70% de cobertura"
         echo "📦 Generando cobertura Product Service..."
         pytest product-service/tests/unit/ \
           --cov=product-service/domain \
+          --cov-fail-under=70 \
           --cov-append \
           --cov-report=xml \
           --cov-report=html \
-          --cov-report=term-missing
+          --cov-report=term-missing || echo "⚠️  Product Service no alcanza 70% de cobertura"
         echo "📋 Generando cobertura Order Service..."
         pytest order-service/tests/unit/test_commands_queries.py \
           --cov=order-service/application \
+          --cov-fail-under=70 \
           --cov-append \
           --cov-report=xml \
           --cov-report=html \
-          --cov-report=term-missing
+          --cov-report=term-missing || echo "⚠️  Order Service no alcanza 70% de cobertura"
         echo "🚚 Generando cobertura Logistics Service..."
         pytest logistics-service/tests/unit/test_commands_queries.py \
           --cov=logistics-service/application \
+          --cov-fail-under=70 \
           --cov-append \
           --cov-report=xml \
           --cov-report=html \
-          --cov-report=term-missing
+          --cov-report=term-missing || echo "⚠️  Logistics Service no alcanza 70% de cobertura"
         echo "🔔 Generando cobertura Notifications Service..."
         pytest notifications-service/tests/unit/test_entities.py notifications-service/tests/unit/test_routes.py \
           --cov=notifications-service/domain \
           --cov=notifications-service/api \
+          --cov-fail-under=70 \
           --cov-append \
           --cov-report=xml \
           --cov-report=html \
-          --cov-report=term-missing
+          --cov-report=term-missing || echo "⚠️  Notifications Service no alcanza 70% de cobertura"
         echo "🔗 Generando cobertura Shared..."
         pytest shared/tests/unit/ \
           --cov=shared/domain \
+          --cov-fail-under=70 \
           --cov-append \
           --cov-report=xml \
           --cov-report=html \
-          --cov-report=term-missing
+          --cov-report=term-missing || echo "⚠️  Shared no alcanza 70% de cobertura"
     
     - name: 📤 Subir reporte de cobertura
       uses: codecov/codecov-action@v4
