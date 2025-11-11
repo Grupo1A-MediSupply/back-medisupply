@@ -20,3 +20,6 @@ max_instances = 10
 cpu_limit     = "1"
 memory_limit  = "512Mi"
 
+# Correos electrónicos
+mail_simulate = true
+

@@ -7,7 +7,7 @@
 
 terraform {
   required_version = ">= 1.0"
-  
+
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -54,7 +54,7 @@ resource "google_artifact_registry_repository" "docker_repo" {
 # Usar null_resource para verificar que Artifact Registry esté listo
 resource "null_resource" "wait_for_registry" {
   depends_on = [google_artifact_registry_repository.docker_repo]
-  
+
   triggers = {
     registry_id = google_artifact_registry_repository.docker_repo.repository_id
   }
@@ -67,28 +67,28 @@ resource "null_resource" "wait_for_registry" {
 locals {
   # Connection name de Cloud SQL (si está habilitado)
   cloud_sql_connection_name = var.enable_cloud_sql ? google_sql_database_instance.postgres[0].connection_name : ""
-  
+
   # URLs de conexión a bases de datos (codificar contraseñas para URL)
   auth_db_url = var.enable_cloud_sql ? (
     "postgresql://${google_sql_user.auth_db_user[0].name}:${urlencode(random_password.auth_db_password[0].result)}@/${google_sql_database.auth_db[0].name}?host=/cloudsql/${local.cloud_sql_connection_name}"
   ) : "sqlite:///./data/auth_service.db"
-  
+
   product_db_url = var.enable_cloud_sql ? (
     "postgresql://${google_sql_user.product_db_user[0].name}:${urlencode(random_password.product_db_password[0].result)}@/${google_sql_database.product_db[0].name}?host=/cloudsql/${local.cloud_sql_connection_name}"
   ) : "sqlite:///./data/product_service.db"
-  
+
   order_db_url = var.enable_cloud_sql ? (
     "postgresql://${google_sql_user.order_db_user[0].name}:${urlencode(random_password.order_db_password[0].result)}@/${google_sql_database.order_db[0].name}?host=/cloudsql/${local.cloud_sql_connection_name}"
   ) : "sqlite:///./data/order_service.db"
-  
+
   logistics_db_url = var.enable_cloud_sql ? (
     "postgresql://${google_sql_user.logistics_db_user[0].name}:${urlencode(random_password.logistics_db_password[0].result)}@/${google_sql_database.logistics_db[0].name}?host=/cloudsql/${local.cloud_sql_connection_name}"
   ) : "sqlite:///./data/logistics_service.db"
-  
+
   notifications_db_url = var.enable_cloud_sql ? (
     "postgresql://${google_sql_user.notifications_db_user[0].name}:${urlencode(random_password.notifications_db_password[0].result)}@/${google_sql_database.notifications_db[0].name}?host=/cloudsql/${local.cloud_sql_connection_name}"
   ) : "sqlite:///./data/notifications_service.db"
-  
+
 }
 
 # ==============================================================================
@@ -138,6 +138,10 @@ resource "google_cloud_run_service" "auth_service" {
           name  = "AUTH_DATABASE_URL"
           value = local.auth_db_url
         }
+        env {
+          name  = "MAIL_SIMULATE"
+          value = tostring(var.mail_simulate)
+        }
 
         resources {
           limits = {
@@ -160,7 +164,7 @@ resource "google_cloud_run_service" "auth_service" {
         "autoscaling.knative.dev/minScale"  = "0"
         "autoscaling.knative.dev/maxScale"  = "10"
         "run.googleapis.com/cpu-throttling" = "true"
-      }, var.enable_cloud_sql ? {
+        }, var.enable_cloud_sql ? {
         "run.googleapis.com/cloudsql-instances" = google_sql_database_instance.postgres[0].connection_name
       } : {})
     }
@@ -228,7 +232,7 @@ resource "google_cloud_run_service" "product_service" {
         "autoscaling.knative.dev/minScale"  = "0"
         "autoscaling.knative.dev/maxScale"  = "10"
         "run.googleapis.com/cpu-throttling" = "true"
-      }, var.enable_cloud_sql ? {
+        }, var.enable_cloud_sql ? {
         "run.googleapis.com/cloudsql-instances" = google_sql_database_instance.postgres[0].connection_name
       } : {})
     }
@@ -300,7 +304,7 @@ resource "google_cloud_run_service" "order_service" {
         "autoscaling.knative.dev/minScale"  = "0"
         "autoscaling.knative.dev/maxScale"  = "10"
         "run.googleapis.com/cpu-throttling" = "true"
-      }, var.enable_cloud_sql ? {
+        }, var.enable_cloud_sql ? {
         "run.googleapis.com/cloudsql-instances" = google_sql_database_instance.postgres[0].connection_name
       } : {})
     }
@@ -368,7 +372,7 @@ resource "google_cloud_run_service" "logistics_service" {
         "autoscaling.knative.dev/minScale"  = "0"
         "autoscaling.knative.dev/maxScale"  = "10"
         "run.googleapis.com/cpu-throttling" = "true"
-      }, var.enable_cloud_sql ? {
+        }, var.enable_cloud_sql ? {
         "run.googleapis.com/cloudsql-instances" = google_sql_database_instance.postgres[0].connection_name
       } : {})
     }
@@ -436,7 +440,7 @@ resource "google_cloud_run_service" "notifications_service" {
         "autoscaling.knative.dev/minScale"  = "0"
         "autoscaling.knative.dev/maxScale"  = "10"
         "run.googleapis.com/cpu-throttling" = "true"
-      }, var.enable_cloud_sql ? {
+        }, var.enable_cloud_sql ? {
         "run.googleapis.com/cloudsql-instances" = google_sql_database_instance.postgres[0].connection_name
       } : {})
     }
@@ -502,7 +506,7 @@ resource "google_secret_manager_secret" "secret_key" {
 resource "google_secret_manager_secret_version" "secret_key" {
   secret      = google_secret_manager_secret.secret_key.id
   secret_data = var.secret_key
-  
+
   lifecycle {
     create_before_destroy = true
   }
@@ -663,7 +667,7 @@ resource "google_sql_user" "notifications_db_user" {
 # ==============================================================================
 
 resource "google_secret_manager_secret" "auth_db_password" {
-  count    = var.enable_cloud_sql ? 1 : 0
+  count     = var.enable_cloud_sql ? 1 : 0
   secret_id = "auth-service-db-password"
 
   replication {

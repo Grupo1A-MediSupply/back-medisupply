@@ -31,6 +31,7 @@ class TestEmailService:
         mock_settings.mail_from_name = "Test Service"
         mock_settings.verification_code_length = 6
         mock_settings.verification_code_expire_minutes = 10
+        mock_settings.mail_simulate = False
         mock_get_settings.return_value = mock_settings
         
         service = EmailService()
@@ -46,6 +47,7 @@ class TestEmailService:
         # Mock settings
         mock_settings = Mock()
         mock_settings.verification_code_length = 6
+        mock_settings.mail_simulate = False
         mock_get_settings.return_value = mock_settings
         
         service = EmailService()
@@ -61,6 +63,7 @@ class TestEmailService:
         """Test: Generar códigos de verificación de diferentes longitudes"""
         # Mock settings
         mock_settings = Mock()
+        mock_settings.mail_simulate = False
         mock_get_settings.return_value = mock_settings
         
         service = EmailService()
@@ -83,6 +86,7 @@ class TestEmailService:
         # Mock settings
         mock_settings = Mock()
         mock_settings.verification_code_length = 6
+        mock_settings.mail_simulate = False
         mock_get_settings.return_value = mock_settings
         
         service = EmailService()
@@ -107,6 +111,7 @@ class TestEmailService:
         mock_settings.mail_from = "test@example.com"
         mock_settings.mail_from_name = "Test Service"
         mock_settings.verification_code_expire_minutes = 10
+        mock_settings.mail_simulate = False
         mock_get_settings.return_value = mock_settings
         
         # Mock HTTP client
@@ -140,6 +145,7 @@ class TestEmailService:
         mock_settings.mail_from = "test@example.com"
         mock_settings.mail_from_name = "Test Service"
         mock_settings.verification_code_expire_minutes = 10
+        mock_settings.mail_simulate = False
         mock_get_settings.return_value = mock_settings
         
         # Mock HTTP client con error
@@ -164,6 +170,27 @@ class TestEmailService:
     @pytest.mark.asyncio
     @patch('infrastructure.email_service.get_settings')
     @patch('infrastructure.email_service.httpx.AsyncClient')
+    async def test_send_verification_code_simulation_mode(self, mock_httpx_client, mock_get_settings):
+        """Test: Enviar código de verificación en modo simulación"""
+        mock_settings = Mock()
+        mock_settings.verification_code_expire_minutes = 10
+        mock_settings.mail_simulate = True
+        mock_get_settings.return_value = mock_settings
+
+        service = EmailService()
+
+        result = await service.send_verification_code(
+            email="user@example.com",
+            username="testuser",
+            code="123456"
+        )
+
+        assert result is True
+        mock_httpx_client.assert_not_called()
+    
+    @pytest.mark.asyncio
+    @patch('infrastructure.email_service.get_settings')
+    @patch('infrastructure.email_service.httpx.AsyncClient')
     async def test_send_verification_code_exception(self, mock_httpx_client, mock_get_settings):
         """Test: Enviar código de verificación con excepción"""
         # Mock settings
@@ -172,6 +199,7 @@ class TestEmailService:
         mock_settings.mail_from = "test@example.com"
         mock_settings.mail_from_name = "Test Service"
         mock_settings.verification_code_expire_minutes = 10
+        mock_settings.mail_simulate = False
         mock_get_settings.return_value = mock_settings
         
         # Mock HTTP client con excepción
@@ -200,6 +228,7 @@ class TestEmailService:
         mock_settings.mail_from = "test@example.com"
         mock_settings.mail_from_name = "Test Service"
         mock_settings.verification_code_expire_minutes = 10
+        mock_settings.mail_simulate = False
         mock_get_settings.return_value = mock_settings
         
         # Mock HTTP client
@@ -241,6 +270,7 @@ class TestEmailService:
         # Mock settings
         mock_settings = Mock()
         mock_settings.verification_code_expire_minutes = 10
+        mock_settings.mail_simulate = False
         mock_get_settings.return_value = mock_settings
         
         service = EmailService()

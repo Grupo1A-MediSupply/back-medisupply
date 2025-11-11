@@ -74,3 +74,9 @@ variable "enable_cloud_sql" {
   default     = true
 }
 
+variable "mail_simulate" {
+  description = "Activa el modo de simulación de envío de correos (true = no se envían correos reales)"
+  type        = bool
+  default     = true
+}
+

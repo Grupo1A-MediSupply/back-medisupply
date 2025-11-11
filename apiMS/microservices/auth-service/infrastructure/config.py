@@ -60,6 +60,7 @@ class AuthServiceSettings(BaseSettings):
     mail_starttls: bool = Field(default=True, env="MAIL_STARTTLS")
     mail_ssl_tls: bool = Field(default=False, env="MAIL_SSL_TLS")
     mail_use_credentials: bool = Field(default=True, env="MAIL_USE_CREDENTIALS")
+    mail_simulate: bool = Field(default=False, env="MAIL_SIMULATE")
     
     # Verification Code
     verification_code_expire_minutes: int = Field(
