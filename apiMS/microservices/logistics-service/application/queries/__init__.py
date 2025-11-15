@@ -38,4 +38,5 @@ class GetAllRoutesQuery:
     """Query para obtener todas las rutas"""
     skip: int = 0
     limit: int = 100
+    status: Optional[str] = None
 

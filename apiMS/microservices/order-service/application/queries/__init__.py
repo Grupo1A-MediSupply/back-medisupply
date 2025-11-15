@@ -24,4 +24,5 @@ class GetAllOrdersQuery:
     """Query para obtener todas las órdenes"""
     skip: int = 0
     limit: int = 100
+    status: Optional[str] = None
 

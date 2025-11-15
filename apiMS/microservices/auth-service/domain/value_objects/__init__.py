@@ -62,3 +62,43 @@ class PhoneNumber:
     
     def __str__(self) -> str:
         return self.value
+
+
+@dataclass(frozen=True)
+class UserRole:
+    """Value Object para rol de usuario"""
+    value: str
+    
+    def __post_init__(self):
+        valid_roles = ["vendor", "client"]
+        if self.value not in valid_roles:
+            raise ValueError(f"El rol debe ser uno de: {', '.join(valid_roles)}")
+    
+    def __str__(self) -> str:
+        return self.value
+
+
+@dataclass(frozen=True)
+class Address:
+    """Value Object para dirección"""
+    value: str
+    
+    def __post_init__(self):
+        if self.value and len(self.value) > 255:
+            raise ValueError("La dirección no puede tener más de 255 caracteres")
+    
+    def __str__(self) -> str:
+        return self.value or ""
+
+
+@dataclass(frozen=True)
+class InstitutionName:
+    """Value Object para nombre de institución"""
+    value: str
+    
+    def __post_init__(self):
+        if self.value and len(self.value) > 255:
+            raise ValueError("El nombre de institución no puede tener más de 255 caracteres")
+    
+    def __str__(self) -> str:
+        return self.value or ""

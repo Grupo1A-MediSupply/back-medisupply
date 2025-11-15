@@ -78,3 +78,11 @@ class VerificationCodeRepository:
         ).delete()
         self.db.commit()
         return deleted_count
+    
+    async def get_latest_code(self, user_id: str) -> Optional[VerificationCodeModel]:
+        """Obtener el código más reciente de un usuario (válido o no)"""
+        verification_code = self.db.query(VerificationCodeModel).filter(
+            VerificationCodeModel.user_id == user_id
+        ).order_by(VerificationCodeModel.created_at.desc()).first()
+        
+        return verification_code

@@ -11,6 +11,13 @@ class CreateRouteCommand:
     """Comando para crear una ruta"""
     stops: List[dict]  # [{"orderId": str, "priority": int, "eta": dict}]
     vehicle_id: Optional[str] = None
+    vendor_id: Optional[str] = None
+    vehicle_type: Optional[str] = None
+    driver_name: Optional[str] = None
+    driver_phone: Optional[str] = None
+    estimated_distance: Optional[float] = None
+    estimated_duration: Optional[int] = None
+    estimated_fuel: Optional[float] = None
 
 
 @dataclass
@@ -54,4 +61,29 @@ class UpdateTrackingCommand:
     route_id: str
     position: dict  # {"lat": float, "lon": float}
     next_stop_eta: Optional[dict] = None
+
+
+@dataclass
+class UpdateRouteCommand:
+    """Comando para actualizar una ruta"""
+    route_id: str
+    status: Optional[str] = None
+    progress: Optional[float] = None
+    actual_distance: Optional[float] = None
+    actual_duration: Optional[int] = None
+    actual_fuel: Optional[float] = None
+    end_time: Optional[datetime] = None
+
+
+@dataclass
+class DeleteRouteCommand:
+    """Comando para eliminar una ruta"""
+    route_id: str
+
+
+@dataclass
+class GenerateOptimalRouteCommand:
+    """Comando para generar ruta óptima"""
+    order_ids: List[str]
+    vehicle_type: Optional[str] = None
 

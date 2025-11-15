@@ -10,6 +10,9 @@ from ...application.handlers import (
     StartRouteCommandHandler,
     CompleteRouteCommandHandler,
     CancelRouteCommandHandler,
+    UpdateRouteCommandHandler,
+    DeleteRouteCommandHandler,
+    GenerateOptimalRouteCommandHandler,
     GetRouteByIdQueryHandler,
     GetRoutesByVehicleQueryHandler,
     GetRoutesByStatusQueryHandler,
@@ -60,4 +63,19 @@ def get_routes_by_status_handler(repo=Depends(get_logistics_repository)):
 def get_all_routes_handler(repo=Depends(get_logistics_repository)):
     """Dependency para obtener handler de obtener todas las rutas"""
     return GetAllRoutesQueryHandler(repo)
+
+
+def get_update_route_handler(repo=Depends(get_logistics_repository)):
+    """Dependency para obtener handler de actualizar ruta"""
+    return UpdateRouteCommandHandler(repo)
+
+
+def get_delete_route_handler(repo=Depends(get_logistics_repository)):
+    """Dependency para obtener handler de eliminar ruta"""
+    return DeleteRouteCommandHandler(repo)
+
+
+def get_generate_optimal_route_handler(repo=Depends(get_logistics_repository)):
+    """Dependency para obtener handler de generar ruta óptima"""
+    return GenerateOptimalRouteCommandHandler(repo)
 

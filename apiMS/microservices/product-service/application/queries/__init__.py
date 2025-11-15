@@ -2,6 +2,7 @@
 Queries del servicio de productos
 """
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
@@ -20,6 +21,9 @@ class GetProductByNameQuery:
 class GetAllProductsQuery:
     """Query para obtener todos los productos"""
     active_only: bool = True
+    search: Optional[str] = None
+    category: Optional[str] = None
+    low_stock_only: bool = False
 
 
 @dataclass

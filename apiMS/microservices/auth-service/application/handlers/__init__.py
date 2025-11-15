@@ -24,7 +24,7 @@ try:
         VerifyTokenQuery, GetCurrentUserQuery
     )
     from ...domain.entities import User
-    from ...domain.value_objects import Username, HashedPassword, FullName, PhoneNumber
+    from ...domain.value_objects import Username, HashedPassword, FullName, PhoneNumber, UserRole, Address, InstitutionName
     from ...domain.ports import IUserRepository, IPasswordHasher, ITokenService
     from ...domain.events import TokenRefreshedEvent
 except ImportError:
@@ -38,7 +38,7 @@ except ImportError:
         VerifyTokenQuery, GetCurrentUserQuery
     )
     from domain.entities import User
-    from domain.value_objects import Username, HashedPassword, FullName, PhoneNumber
+    from domain.value_objects import Username, HashedPassword, FullName, PhoneNumber, UserRole, Address, InstitutionName
     from domain.ports import IUserRepository, IPasswordHasher, ITokenService
     from domain.events import TokenRefreshedEvent
 
@@ -84,6 +84,9 @@ class RegisterUserCommandHandler:
             hashed_password=hashed_password,
             full_name=FullName(command.full_name) if command.full_name else None,
             phone_number=PhoneNumber(command.phone_number) if command.phone_number else None,
+            role=UserRole(command.role) if command.role else None,
+            address=Address(command.address) if command.address else None,
+            institution_name=InstitutionName(command.institution_name) if command.institution_name else None,
             is_active=command.is_active,
             is_superuser=command.is_superuser
         )
@@ -163,24 +166,31 @@ class LoginCommandHandler:
                 code=verification_code
             )
             
-            # Enviar código por email
-            email_sent = await self.email_service.send_verification_code(
-                email=str(user.email),
-                username=str(user.username),
-                code=verification_code
-            )
-            
-            if not email_sent:
-                raise ValueError("Error enviando código de verificación")
-            
-            # Hacer commit de la transacción
+            # Hacer commit de la transacción primero
             self.verification_code_repository.db.commit()
             
+            # Intentar enviar código por email (opcional, no bloquea si falla)
+            # El código se puede obtener mediante GET /auth/verification-code/{user_id}
+            try:
+                email_sent = await self.email_service.send_verification_code(
+                    email=str(user.email),
+                    username=str(user.username),
+                    code=verification_code
+                )
+                if email_sent:
+                    email_message = "Código de verificación enviado al email"
+                else:
+                    email_message = "Código generado. Usa GET /auth/verification-code/{user_id} para obtenerlo"
+            except Exception as e:
+                print(f"⚠️ Error enviando email (no crítico): {e}")
+                email_message = "Código generado. Usa GET /auth/verification-code/{user_id} para obtenerlo"
+            
             return {
-                "message": "Código de verificación enviado al email",
+                "message": email_message,
                 "user_id": str(user.id),
                 "email": str(user.email),
-                "requires_verification": True
+                "requires_verification": True,
+                "note": "Puedes obtener el código mediante GET /auth/verification-code/{user_id}"
             }
         except Exception as e:
             print(f"Error en LoginCommandHandler: {e}")
@@ -316,7 +326,14 @@ class UpdateProfileCommandHandler:
         # Actualizar perfil
         full_name = FullName(command.full_name) if command.full_name else None
         phone_number = PhoneNumber(command.phone_number) if command.phone_number else None
-        user.update_profile(full_name=full_name, phone_number=phone_number)
+        address = Address(command.address) if command.address else None
+        institution_name = InstitutionName(command.institution_name) if command.institution_name else None
+        user.update_profile(
+            full_name=full_name, 
+            phone_number=phone_number,
+            address=address,
+            institution_name=institution_name
+        )
         
         # Guardar usuario
         user = await self.user_repository.save(user)

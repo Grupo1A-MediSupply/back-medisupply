@@ -14,6 +14,9 @@ class RegisterUserCommand:
     confirm_password: Optional[str] = None
     full_name: Optional[str] = None
     phone_number: Optional[str] = None
+    role: Optional[str] = None  # 'vendor' o 'client'
+    address: Optional[str] = None
+    institution_name: Optional[str] = None
     is_active: bool = True
     is_superuser: bool = False
 
@@ -52,6 +55,8 @@ class UpdateProfileCommand:
     user_id: str
     full_name: Optional[str] = None
     phone_number: Optional[str] = None
+    address: Optional[str] = None
+    institution_name: Optional[str] = None
 
 
 @dataclass
