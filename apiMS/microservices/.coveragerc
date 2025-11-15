@@ -1,0 +1,43 @@
+[run]
+# Configuración de coverage para calcular cobertura solo sobre módulos probados
+source = .
+
+[report]
+# Excluir archivos que normalmente no necesitan tests
+exclude_lines =
+    # Excluir pragmas
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    if settings.DEBUG
+    raise AssertionError
+    raise NotImplementedError
+    if 0:
+    if __name__ == .__main__.:
+    class .*\bProtocol\):
+    @(abc\.)?abstractmethod
+
+# Incluir solo archivos de código fuente (no tests, no __pycache__)
+include =
+    */auth-service/*
+    */product-service/*
+    */order-service/*
+    */logistics-service/*
+    */notifications-service/*
+    */shared/*
+
+omit =
+    */tests/*
+    */test_*.py
+    */__pycache__/*
+    */migrations/*
+    */venv/*
+    */env/*
+    */.pytest_cache/*
+    */htmlcov/*
+    */site-packages/*
+
+precision = 2
+show_missing = True
+skip_covered = False
+

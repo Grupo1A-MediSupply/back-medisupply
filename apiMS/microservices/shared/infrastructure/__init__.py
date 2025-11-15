@@ -1,0 +1,4 @@
+"""
+Infraestructura compartida entre microservicios
+"""
+

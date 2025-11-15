@@ -1,0 +1,4 @@
+"""
+Capa de aplicación del servicio de inventario
+"""
+

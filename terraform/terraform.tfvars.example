@@ -1,0 +1,39 @@
+# Archivo de ejemplo para variables de Terraform
+# Copia este archivo como terraform.tfvars y ajusta los valores según tu entorno
+
+# Configuración general
+aws_region   = "us-east-1"
+environment  = "production"
+project_name = "medisupply"
+
+# Configuración ECS
+ecs_cluster_name = "medisupply-cluster"
+ecs_service_name = "medisupply-service"
+container_name   = "medisupply-container"
+container_port   = 8000
+app_count        = 2
+
+# Configuración Fargate
+fargate_cpu    = 512
+fargate_memory = 1024
+
+# Configuración base de datos (opcional)
+db_instance_class    = "db.t3.micro"
+db_allocated_storage = 20
+db_engine_version    = "13.7"
+db_name              = "medisupply"
+db_username          = "medisupply"
+db_password          = "your-secure-password-here"
+
+# Configuración Redis (opcional)
+redis_node_type        = "cache.t3.micro"
+redis_num_cache_nodes  = 1
+
+# Tags personalizados
+tags = {
+  Project     = "medisupply"
+  Environment = "production"
+  ManagedBy   = "terraform"
+  Owner       = "your-team"
+  CostCenter  = "engineering"
+}
