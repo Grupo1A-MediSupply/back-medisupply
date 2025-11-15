@@ -39,13 +39,21 @@ class NotificationResponse(BaseModel):
     description="Lista todas las notificaciones del usuario autenticado"
 )
 async def get_notifications(
-    read: Optional[bool] = None,  # Cambiado de is_read a read según especificación
-    type: Optional[str] = None,  # Cambiado de notification_type a type según especificación
+    read: Optional[bool] = None,  # Parámetro según especificación
+    is_read: Optional[bool] = None,  # Parámetro para compatibilidad con tests
+    type: Optional[str] = None,  # Parámetro según especificación
+    notification_type: Optional[str] = None,  # Parámetro para compatibilidad con tests
     limit: int = 50
 ):
     """Obtener notificaciones del usuario"""
     # TODO: Implementar lógica real con repositorio y autenticación
     # Por ahora retorna mock data para cumplir contrato
+    
+    # Usar read si está disponible, sino usar is_read (compatibilidad)
+    read_filter = read if read is not None else is_read
+    
+    # Usar type si está disponible, sino usar notification_type (compatibilidad)
+    type_filter = type if type is not None else notification_type
     
     mock_notifications = [
         {
@@ -101,16 +109,16 @@ async def get_notifications(
         }
     ]
     
-    # Filtrar por read si se proporciona
-    if read is not None:
+    # Filtrar por read/is_read si se proporciona
+    if read_filter is not None:
         mock_notifications = [
-            n for n in mock_notifications if n["read"] == read
+            n for n in mock_notifications if n["is_read"] == read_filter
         ]
     
-    # Filtrar por type si se proporciona
-    if type:
+    # Filtrar por type/notification_type si se proporciona
+    if type_filter:
         mock_notifications = [
-            n for n in mock_notifications if n["type"] == type
+            n for n in mock_notifications if n["type"] == type_filter
         ]
     
     # Limitar resultados
