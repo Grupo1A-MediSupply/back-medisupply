@@ -39,6 +39,7 @@ from ..dependencies import (
     get_user_by_id_handler,
     get_current_user_handler,
     get_verify_token_handler,
+    get_verify_code_handler,
     get_token_service,
     get_verification_code_repository
 )
@@ -213,9 +214,12 @@ async def register(
             detail=str(e)
         )
     except Exception as e:
+        import traceback
+        print("❌ Error en verify_mfa_code:", e)
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error interno del servidor"
+            detail=str(e)  # Mientras debug, devolvemos el mensaje real
         )
 
 
@@ -284,26 +288,23 @@ async def login(
     description="Verifica el código MFA y devuelve tokens"
 )
 async def verify_mfa_code(
-    request: VerifyCodeRequest
+    request: VerifyCodeRequest,
+    verify_handler=Depends(get_verify_code_handler),
+    user_handler=Depends(get_user_by_id_handler)
 ):
     """Verificar código MFA"""
     try:
         from ...application.commands import VerifyCodeCommand
-        from ..dependencies import get_verify_code_handler
-        
-        handler = get_verify_code_handler()
+        from ...application.queries import GetUserByIdQuery
+
+        # Verificar código MFA usando el handler inyectado por FastAPI
         command = VerifyCodeCommand(
             user_id=request.user_id,
             code=request.code
         )
-        
-        result = await handler.handle(command)
-        
+        result = await verify_handler.handle(command)
+
         # Obtener usuario para incluir en respuesta
-        from ..dependencies import get_user_by_id_handler
-        from ...application.queries import GetUserByIdQuery
-        
-        user_handler = get_user_by_id_handler()
         user_query = GetUserByIdQuery(user_id=request.user_id)
         user = await user_handler.handle(user_query)
         

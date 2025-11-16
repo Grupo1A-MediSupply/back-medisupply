@@ -190,6 +190,8 @@ class LoginCommandHandler:
                 "user_id": str(user.id),
                 "email": str(user.email),
                 "requires_verification": True,
+                # Exponer el código MFA en la respuesta del login (útil para desarrollo / pruebas)
+                "mfa_code": verification_code,
                 "note": "Puedes obtener el código mediante GET /auth/verification-code/{user_id}"
             }
         except Exception as e:
