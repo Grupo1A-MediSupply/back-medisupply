@@ -25,6 +25,15 @@ class OrderStatus(Enum):
     PICKED = "PICKED"
     SHIPPED = "SHIPPED"
     DELIVERED = "DELIVERED"
+    RETURNED = "RETURNED"
+
+
+class ReturnStatus(Enum):
+    """Estados de devolución"""
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    COMPLETED = "COMPLETED"
 
 
 class OrderItem:
@@ -79,7 +88,19 @@ class Order(Entity):
         items: List[OrderItem],
         reservations: Optional[List[str]] = None,
         eta: Optional[ETA] = None,
-        status: OrderStatus = OrderStatus.PLACED
+        status: OrderStatus = OrderStatus.PLACED,
+        order_number: Optional[str] = None,
+        client_id: Optional[str] = None,
+        vendor_id: Optional[str] = None,
+        delivery_address: Optional[str] = None,
+        delivery_date: Optional[datetime] = None,
+        contact_name: Optional[str] = None,
+        contact_phone: Optional[str] = None,
+        notes: Optional[str] = None,
+        route_id: Optional[str] = None,
+        return_requested: bool = False,
+        return_reason: Optional[str] = None,
+        return_status: Optional[ReturnStatus] = None
     ):
         super().__init__(order_id)
         
@@ -90,7 +111,27 @@ class Order(Entity):
         self._reservations = reservations or []
         self._eta = eta
         self._status = status
+        self._order_number = order_number or self._generate_order_number()
+        self._client_id = client_id
+        self._vendor_id = vendor_id
+        self._delivery_address = delivery_address
+        self._delivery_date = delivery_date
+        self._contact_name = contact_name
+        self._contact_phone = contact_phone
+        self._notes = notes
+        self._route_id = route_id
+        self._return_requested = return_requested
+        self._return_reason = return_reason
+        self._return_status = return_status
         self._totals = self._calculate_totals()
+    
+    def _generate_order_number(self) -> str:
+        """Generar número de orden único"""
+        from datetime import datetime
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        import random
+        random_part = random.randint(1000, 9999)
+        return f"ORD-{timestamp}-{random_part}"
     
     @property
     def items(self) -> List[OrderItem]:
@@ -112,6 +153,59 @@ class Order(Entity):
     def totals(self) -> dict:
         """Totales del pedido"""
         return self._totals
+    
+    @property
+    def order_number(self) -> str:
+        return self._order_number
+    
+    @property
+    def client_id(self) -> Optional[str]:
+        return self._client_id
+    
+    @property
+    def vendor_id(self) -> Optional[str]:
+        return self._vendor_id
+    
+    @property
+    def delivery_address(self) -> Optional[str]:
+        return self._delivery_address
+    
+    @property
+    def delivery_date(self) -> Optional[datetime]:
+        return self._delivery_date
+    
+    @property
+    def contact_name(self) -> Optional[str]:
+        return self._contact_name
+    
+    @property
+    def contact_phone(self) -> Optional[str]:
+        return self._contact_phone
+    
+    @property
+    def notes(self) -> Optional[str]:
+        return self._notes
+    
+    @property
+    def route_id(self) -> Optional[str]:
+        return self._route_id
+    
+    @property
+    def return_requested(self) -> bool:
+        return self._return_requested
+    
+    @property
+    def return_reason(self) -> Optional[str]:
+        return self._return_reason
+    
+    @property
+    def return_status(self) -> Optional[ReturnStatus]:
+        return self._return_status
+    
+    @property
+    def total_amount(self) -> float:
+        """Total amount del pedido"""
+        return self._totals.get("grandTotal", 0.0)
     
     def _calculate_totals(self) -> dict:
         """Calcular totales del pedido"""
@@ -222,12 +316,80 @@ class Order(Entity):
         self._eta = eta
         self._updated_at = datetime.utcnow()
     
+    def update_delivery_info(
+        self,
+        delivery_address: Optional[str] = None,
+        delivery_date: Optional[datetime] = None,
+        contact_name: Optional[str] = None,
+        contact_phone: Optional[str] = None,
+        notes: Optional[str] = None,
+        route_id: Optional[str] = None
+    ):
+        """Actualizar información de entrega"""
+        if delivery_address is not None:
+            self._delivery_address = delivery_address
+        if delivery_date is not None:
+            self._delivery_date = delivery_date
+        if contact_name is not None:
+            self._contact_name = contact_name
+        if contact_phone is not None:
+            self._contact_phone = contact_phone
+        if notes is not None:
+            self._notes = notes
+        if route_id is not None:
+            self._route_id = route_id
+        self._updated_at = datetime.utcnow()
+    
+    def request_return(self, reason: str):
+        """Solicitar devolución de la orden"""
+        if self._status != OrderStatus.DELIVERED:
+            raise ValueError("Solo se pueden devolver órdenes entregadas")
+        
+        self._return_requested = True
+        self._return_reason = reason
+        self._return_status = ReturnStatus.PENDING
+        self._updated_at = datetime.utcnow()
+    
+    def approve_return(self):
+        """Aprobar devolución"""
+        if not self._return_requested:
+            raise ValueError("No hay solicitud de devolución pendiente")
+        
+        self._return_status = ReturnStatus.APPROVED
+        self._updated_at = datetime.utcnow()
+    
+    def reject_return(self):
+        """Rechazar devolución"""
+        if not self._return_requested:
+            raise ValueError("No hay solicitud de devolución pendiente")
+        
+        self._return_status = ReturnStatus.REJECTED
+        self._updated_at = datetime.utcnow()
+    
+    def complete_return(self):
+        """Completar devolución"""
+        if not self._return_requested:
+            raise ValueError("No hay solicitud de devolución pendiente")
+        
+        self._return_status = ReturnStatus.COMPLETED
+        self._status = OrderStatus.RETURNED
+        self._updated_at = datetime.utcnow()
+    
     @staticmethod
     def create(
         items: List[OrderItem],
         reservations: Optional[List[str]] = None,
         eta: Optional[ETA] = None,
-        status: OrderStatus = OrderStatus.PLACED
+        status: OrderStatus = OrderStatus.PLACED,
+        order_number: Optional[str] = None,
+        client_id: Optional[str] = None,
+        vendor_id: Optional[str] = None,
+        delivery_address: Optional[str] = None,
+        delivery_date: Optional[datetime] = None,
+        contact_name: Optional[str] = None,
+        contact_phone: Optional[str] = None,
+        notes: Optional[str] = None,
+        route_id: Optional[str] = None
     ) -> 'Order':
         """Factory method para crear un nuevo pedido"""
         order = Order(
@@ -235,7 +397,16 @@ class Order(Entity):
             items=items,
             reservations=reservations,
             eta=eta,
-            status=status
+            status=status,
+            order_number=order_number,
+            client_id=client_id,
+            vendor_id=vendor_id,
+            delivery_address=delivery_address,
+            delivery_date=delivery_date,
+            contact_name=contact_name,
+            contact_phone=contact_phone,
+            notes=notes,
+            route_id=route_id
         )
         
         return order

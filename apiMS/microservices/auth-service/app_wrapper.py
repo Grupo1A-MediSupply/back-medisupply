@@ -16,6 +16,8 @@ if current_dir not in sys.path:
 # Importar configuración y módulos necesarios
 from infrastructure.config import get_settings
 from infrastructure.database import create_tables
+# Importar modelos para que se registren en Base.metadata antes de create_tables()
+from infrastructure.repositories import UserModel, VerificationCodeModel
 from api.routes import router
 from application.services import UserEventHandler, setup_event_handlers
 

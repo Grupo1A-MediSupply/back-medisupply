@@ -12,6 +12,14 @@ class CreateOrderCommand:
     items: List[dict]  # [{"skuId": str, "qty": int, "price": float}]
     eta: Optional[dict] = None  # {"date": datetime, "windowMinutes": int}
     reservations: Optional[List[str]] = None
+    client_id: Optional[str] = None
+    vendor_id: Optional[str] = None
+    delivery_address: Optional[str] = None
+    delivery_date: Optional[datetime] = None
+    contact_name: Optional[str] = None
+    contact_phone: Optional[str] = None
+    notes: Optional[str] = None
+    route_id: Optional[str] = None
 
 
 @dataclass
@@ -20,6 +28,13 @@ class UpdateOrderCommand:
     order_id: str
     items: Optional[List[dict]] = None
     eta: Optional[dict] = None
+    status: Optional[str] = None
+    delivery_address: Optional[str] = None
+    delivery_date: Optional[datetime] = None
+    contact_name: Optional[str] = None
+    contact_phone: Optional[str] = None
+    notes: Optional[str] = None
+    route_id: Optional[str] = None
 
 
 @dataclass
@@ -64,4 +79,17 @@ class RemoveReservationCommand:
     """Comando para eliminar reserva de una orden"""
     order_id: str
     reservation_id: str
+
+
+@dataclass
+class RequestReturnCommand:
+    """Comando para solicitar devolución de una orden"""
+    order_id: str
+    reason: str
+
+
+@dataclass
+class DeleteOrderCommand:
+    """Comando para eliminar una orden"""
+    order_id: str
 

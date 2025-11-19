@@ -2,7 +2,8 @@
 Entidades del dominio de productos
 """
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
+from dataclasses import dataclass
 import sys
 from pathlib import Path
 
@@ -13,7 +14,10 @@ if shared_path not in sys.path:
 
 from shared.domain.entity import Entity
 from shared.domain.value_objects import EntityId, Money
-from ..value_objects import ProductName, ProductDescription, Stock
+from ..value_objects import (
+    ProductName, ProductDescription, Stock, Lot, Warehouse, 
+    Supplier, Category, VendorId
+)
 from ..events import (
     ProductCreatedEvent,
     ProductUpdatedEvent,
@@ -21,6 +25,24 @@ from ..events import (
     StockUpdatedEvent,
     LowStockEvent
 )
+
+
+@dataclass
+class Batch:
+    """Value Object para lote con información adicional"""
+    batch: str
+    quantity: int
+    expiry: Optional[datetime] = None
+    location: Optional[str] = None
+    
+    def to_dict(self) -> dict:
+        """Convertir a diccionario"""
+        return {
+            "batch": self.batch,
+            "quantity": self.quantity,
+            "expiry": self.expiry.isoformat() if self.expiry else None,
+            "location": self.location
+        }
 
 
 class Product(Entity):
@@ -35,6 +57,13 @@ class Product(Entity):
         price: Money,
         description: Optional[ProductDescription] = None,
         stock: Stock = Stock(0),
+        expiry: Optional[datetime] = None,
+        lot: Optional[Lot] = None,
+        warehouse: Optional[Warehouse] = None,
+        supplier: Optional[Supplier] = None,
+        category: Optional[Category] = None,
+        batches: Optional[List[Batch]] = None,
+        vendor_id: Optional[VendorId] = None,
         is_active: bool = True
     ):
         super().__init__(product_id)
@@ -42,6 +71,13 @@ class Product(Entity):
         self._price = price
         self._description = description
         self._stock = stock
+        self._expiry = expiry
+        self._lot = lot
+        self._warehouse = warehouse
+        self._supplier = supplier
+        self._category = category
+        self._batches = batches or []
+        self._vendor_id = vendor_id
         self._is_active = is_active
     
     @property
@@ -63,6 +99,34 @@ class Product(Entity):
     @property
     def is_active(self) -> bool:
         return self._is_active
+    
+    @property
+    def expiry(self) -> Optional[datetime]:
+        return self._expiry
+    
+    @property
+    def lot(self) -> Optional[Lot]:
+        return self._lot
+    
+    @property
+    def warehouse(self) -> Optional[Warehouse]:
+        return self._warehouse
+    
+    @property
+    def supplier(self) -> Optional[Supplier]:
+        return self._supplier
+    
+    @property
+    def category(self) -> Optional[Category]:
+        return self._category
+    
+    @property
+    def batches(self) -> List[Batch]:
+        return self._batches
+    
+    @property
+    def vendor_id(self) -> Optional[VendorId]:
+        return self._vendor_id
     
     def update_name(self, name: ProductName):
         """Actualizar nombre del producto"""
@@ -143,6 +207,13 @@ class Product(Entity):
         price: Money,
         description: Optional[ProductDescription] = None,
         stock: Stock = Stock(0),
+        expiry: Optional[datetime] = None,
+        lot: Optional[Lot] = None,
+        warehouse: Optional[Warehouse] = None,
+        supplier: Optional[Supplier] = None,
+        category: Optional[Category] = None,
+        batches: Optional[List[Batch]] = None,
+        vendor_id: Optional[VendorId] = None,
         is_active: bool = True
     ) -> 'Product':
         """Factory method para crear un nuevo producto"""
@@ -152,6 +223,13 @@ class Product(Entity):
             price=price,
             description=description,
             stock=stock,
+            expiry=expiry,
+            lot=lot,
+            warehouse=warehouse,
+            supplier=supplier,
+            category=category,
+            batches=batches,
+            vendor_id=vendor_id,
             is_active=is_active
         )
         

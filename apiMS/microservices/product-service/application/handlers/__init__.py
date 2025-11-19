@@ -3,6 +3,7 @@ Handlers para comandos y queries del servicio de productos
 """
 from typing import Optional, List
 from uuid import uuid4
+from datetime import datetime
 import sys
 from pathlib import Path
 
@@ -28,8 +29,11 @@ from ..queries import (
     GetAllProductsQuery,
     GetProductStockQuery
 )
-from ...domain.entities import Product
-from ...domain.value_objects import ProductName, ProductDescription, Stock
+from ...domain.entities import Product, Batch
+from ...domain.value_objects import (
+    ProductName, ProductDescription, Stock, Lot, Warehouse, 
+    Supplier, Category, VendorId
+)
 from ...domain.ports import IProductRepository
 
 
@@ -43,6 +47,19 @@ class CreateProductCommandHandler:
     
     async def handle(self, command: CreateProductCommand) -> Product:
         """Manejar comando de creación de producto"""
+        # Convertir batches
+        batches = None
+        if command.batches:
+            batches = [
+                Batch(
+                    batch=b.batch,
+                    quantity=b.quantity,
+                    expiry=b.expiry,
+                    location=b.location
+                )
+                for b in command.batches
+            ]
+        
         # Crear producto
         product = Product.create(
             product_id=EntityId(str(uuid4())),
@@ -50,6 +67,13 @@ class CreateProductCommandHandler:
             price=Money(command.price),
             description=ProductDescription(command.description) if command.description else None,
             stock=Stock(command.stock),
+            expiry=command.expiry,
+            lot=Lot(command.lot) if command.lot else None,
+            warehouse=Warehouse(command.warehouse) if command.warehouse else None,
+            supplier=Supplier(command.supplier) if command.supplier else None,
+            category=Category(command.category) if command.category else None,
+            batches=batches,
+            vendor_id=VendorId(command.vendor_id) if command.vendor_id else None,
             is_active=command.is_active
         )
         
@@ -87,6 +111,38 @@ class UpdateProductCommandHandler:
         
         if command.price:
             product.update_price(Money(command.price))
+        
+        # Actualizar nuevos campos (necesitamos métodos en la entidad o actualizar directamente)
+        # Por ahora, recreamos el producto con los nuevos valores
+        if command.expiry is not None or command.lot or command.warehouse or command.supplier or command.category or command.batches:
+            # Convertir batches
+            batches = None
+            if command.batches:
+                batches = [
+                    Batch(
+                        batch=b.batch,
+                        quantity=b.quantity,
+                        expiry=b.expiry,
+                        location=b.location
+                    )
+                    for b in command.batches
+                ]
+            
+            # Actualizar campos directamente (esto requiere métodos setter o recrear)
+            # Por simplicidad, actualizamos los campos directamente
+            if command.expiry is not None:
+                product._expiry = command.expiry
+            if command.lot:
+                product._lot = Lot(command.lot)
+            if command.warehouse:
+                product._warehouse = Warehouse(command.warehouse)
+            if command.supplier:
+                product._supplier = Supplier(command.supplier)
+            if command.category:
+                product._category = Category(command.category)
+            if batches is not None:
+                product._batches = batches
+            product._updated_at = datetime.utcnow()
         
         # Guardar producto
         product = await self.product_repository.save(product)
@@ -249,7 +305,12 @@ class GetAllProductsQueryHandler:
     
     async def handle(self, query: GetAllProductsQuery) -> List[Product]:
         """Manejar query de obtener todos los productos"""
-        return await self.product_repository.find_all(active_only=query.active_only)
+        return await self.product_repository.find_all(
+            active_only=query.active_only,
+            search=query.search,
+            category=query.category,
+            low_stock_only=query.low_stock_only
+        )
 
 
 class GetProductStockQueryHandler:

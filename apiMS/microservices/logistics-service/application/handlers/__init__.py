@@ -14,7 +14,8 @@ from shared.domain.events import event_bus
 from ..commands import (
     CreateRouteCommand, AddStopCommand, RemoveStopCommand,
     StartRouteCommand, CompleteRouteCommand, CancelRouteCommand,
-    UpdateTrackingCommand
+    UpdateTrackingCommand, UpdateRouteCommand, DeleteRouteCommand,
+    GenerateOptimalRouteCommand
 )
 from ..queries import (
     GetRouteByIdQuery, GetRoutesByVehicleQuery, GetRoutesByStatusQuery,
@@ -56,7 +57,14 @@ class CreateRouteCommandHandler:
         # Crear ruta
         route = Route.create(
             stops=stops,
-            vehicle_id=command.vehicle_id
+            vehicle_id=command.vehicle_id,
+            vendor_id=command.vendor_id,
+            vehicle_type=command.vehicle_type,
+            driver_name=command.driver_name,
+            driver_phone=command.driver_phone,
+            estimated_distance=command.estimated_distance,
+            estimated_duration=command.estimated_duration,
+            estimated_fuel=command.estimated_fuel
         )
         
         # Guardar ruta
@@ -210,6 +218,93 @@ class GetAllRoutesQueryHandler:
     
     async def handle(self, query: GetAllRoutesQuery) -> list:
         """Manejar query de obtener todas las rutas"""
-        routes = await self.logistics_repository.find_all(skip=query.skip, limit=query.limit)
+        status_enum = None
+        if query.status:
+            status_enum = RouteStatus(query.status)
+        routes = await self.logistics_repository.find_all(skip=query.skip, limit=query.limit, status=status_enum)
         return routes
+
+
+class UpdateRouteCommandHandler:
+    """Handler para el comando UpdateRoute"""
+    
+    def __init__(self, logistics_repository: ILogisticsRepository):
+        self.logistics_repository = logistics_repository
+    
+    async def handle(self, command: UpdateRouteCommand) -> Route:
+        """Manejar comando de actualización de ruta"""
+        route = await self.logistics_repository.find_by_id(EntityId(command.route_id))
+        if not route:
+            raise ValueError(f"Ruta {command.route_id} no encontrada")
+        
+        status_enum = None
+        if command.status:
+            status_enum = RouteStatus(command.status)
+        
+        route.update_progress(
+            status=status_enum,
+            progress=command.progress,
+            actual_distance=command.actual_distance,
+            actual_duration=command.actual_duration,
+            actual_fuel=command.actual_fuel,
+            end_time=command.end_time
+        )
+        
+        route = await self.logistics_repository.save(route)
+        
+        return route
+
+
+class DeleteRouteCommandHandler:
+    """Handler para el comando DeleteRoute"""
+    
+    def __init__(self, logistics_repository: ILogisticsRepository):
+        self.logistics_repository = logistics_repository
+    
+    async def handle(self, command: DeleteRouteCommand) -> bool:
+        """Manejar comando de eliminación de ruta"""
+        deleted = await self.logistics_repository.delete(EntityId(command.route_id))
+        if not deleted:
+            raise ValueError(f"Ruta {command.route_id} no encontrada")
+        
+        return True
+
+
+class GenerateOptimalRouteCommandHandler:
+    """Handler para el comando GenerateOptimalRoute"""
+    
+    def __init__(self, logistics_repository: ILogisticsRepository):
+        self.logistics_repository = logistics_repository
+    
+    async def handle(self, command: GenerateOptimalRouteCommand) -> Route:
+        """Manejar comando de generar ruta óptima"""
+        # Crear stops desde order_ids
+        # En una implementación real, aquí se consultaría el Order Service para obtener las direcciones
+        # y se usaría un algoritmo de optimización de rutas (como TSP o VRP)
+        stops = []
+        for idx, order_id in enumerate(command.order_ids):
+            stop = Stop(
+                order_id=order_id,
+                priority=idx + 1
+            )
+            stops.append(stop)
+        
+        # Calcular estimaciones básicas (en producción, usar un servicio de mapas)
+        estimated_distance = len(stops) * 5.0  # Estimación simple: 5km por parada
+        estimated_duration = len(stops) * 15  # Estimación simple: 15 min por parada
+        estimated_fuel = estimated_distance * 0.1  # Estimación simple: 0.1L por km
+        
+        # Crear ruta
+        route = Route.create(
+            stops=stops,
+            vehicle_type=command.vehicle_type,
+            estimated_distance=estimated_distance,
+            estimated_duration=estimated_duration,
+            estimated_fuel=estimated_fuel
+        )
+        
+        # Guardar ruta
+        route = await self.logistics_repository.save(route)
+        
+        return route
 

@@ -74,3 +74,68 @@ class Stock:
         """Verificar si hay stock disponible"""
         return self.quantity >= amount
 
+
+@dataclass(frozen=True)
+class Lot:
+    """Value Object para lote de producto"""
+    value: str
+    
+    def __post_init__(self):
+        if self.value and len(self.value) > 100:
+            raise ValueError("El lote no puede tener más de 100 caracteres")
+    
+    def __str__(self) -> str:
+        return self.value or ""
+
+
+@dataclass(frozen=True)
+class Warehouse:
+    """Value Object para bodega"""
+    value: str
+    
+    def __post_init__(self):
+        if self.value and len(self.value) > 255:
+            raise ValueError("La bodega no puede tener más de 255 caracteres")
+    
+    def __str__(self) -> str:
+        return self.value or ""
+
+
+@dataclass(frozen=True)
+class Supplier:
+    """Value Object para proveedor"""
+    value: str
+    
+    def __post_init__(self):
+        if self.value and len(self.value) > 255:
+            raise ValueError("El proveedor no puede tener más de 255 caracteres")
+    
+    def __str__(self) -> str:
+        return self.value or ""
+
+
+@dataclass(frozen=True)
+class Category:
+    """Value Object para categoría"""
+    value: str
+    
+    def __post_init__(self):
+        if self.value and len(self.value) > 100:
+            raise ValueError("La categoría no puede tener más de 100 caracteres")
+    
+    def __str__(self) -> str:
+        return self.value or ""
+
+
+@dataclass(frozen=True)
+class VendorId:
+    """Value Object para ID de vendedor"""
+    value: str
+    
+    def __post_init__(self):
+        if self.value and len(self.value) > 100:
+            raise ValueError("El vendor ID no puede tener más de 100 caracteres")
+    
+    def __str__(self) -> str:
+        return self.value or ""
+

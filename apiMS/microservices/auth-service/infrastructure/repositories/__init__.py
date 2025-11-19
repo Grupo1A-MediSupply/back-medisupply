@@ -22,11 +22,11 @@ if auth_service_path not in sys.path:
 from shared.domain.value_objects import EntityId, Email
 try:
     from ...domain.entities import User
-    from ...domain.value_objects import Username, HashedPassword, FullName, PhoneNumber
+    from ...domain.value_objects import Username, HashedPassword, FullName, PhoneNumber, UserRole, Address, InstitutionName
     from ...domain.ports import IUserRepository
 except ImportError:
     from domain.entities import User
-    from domain.value_objects import Username, HashedPassword, FullName, PhoneNumber
+    from domain.value_objects import Username, HashedPassword, FullName, PhoneNumber, UserRole, Address, InstitutionName
     from domain.ports import IUserRepository
 
 Base = declarative_base()
@@ -41,6 +41,9 @@ class UserModel(Base):
     username = Column(String, unique=True, nullable=False, index=True)
     full_name = Column(String, nullable=True)
     phone_number = Column(String, nullable=True)
+    role = Column(String, nullable=True)  # 'vendor' o 'client'
+    address = Column(String, nullable=True)
+    institution_name = Column(String, nullable=True)
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
@@ -76,6 +79,9 @@ class SQLAlchemyUserRepository(IUserRepository):
             hashed_password=HashedPassword(model.hashed_password),
             full_name=FullName(model.full_name) if model.full_name else None,
             phone_number=PhoneNumber(model.phone_number) if model.phone_number else None,
+            role=UserRole(model.role) if model.role else None,
+            address=Address(model.address) if model.address else None,
+            institution_name=InstitutionName(model.institution_name) if model.institution_name else None,
             is_active=model.is_active,
             is_superuser=model.is_superuser
         )
@@ -89,6 +95,9 @@ class SQLAlchemyUserRepository(IUserRepository):
             hashed_password=str(user.hashed_password),
             full_name=str(user.full_name) if user.full_name else None,
             phone_number=str(user.phone_number) if user.phone_number else None,
+            role=str(user.role) if user.role else None,
+            address=str(user.address) if user.address else None,
+            institution_name=str(user.institution_name) if user.institution_name else None,
             is_active=user.is_active,
             is_superuser=user.is_superuser,
             created_at=user.created_at,
@@ -109,6 +118,9 @@ class SQLAlchemyUserRepository(IUserRepository):
             existing.hashed_password = str(user.hashed_password)
             existing.full_name = str(user.full_name) if user.full_name else None
             existing.phone_number = str(user.phone_number) if user.phone_number else None
+            existing.role = str(user.role) if user.role else None
+            existing.address = str(user.address) if user.address else None
+            existing.institution_name = str(user.institution_name) if user.institution_name else None
             existing.is_active = user.is_active
             existing.is_superuser = user.is_superuser
             existing.updated_at = user.updated_at

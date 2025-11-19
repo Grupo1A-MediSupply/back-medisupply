@@ -17,6 +17,8 @@ from ...application.handlers import (
     MarkOrderDeliveredCommandHandler,
     AddReservationCommandHandler,
     RemoveReservationCommandHandler,
+    RequestReturnCommandHandler,
+    DeleteOrderCommandHandler,
     GetOrderByIdQueryHandler,
     GetOrdersByStatusQueryHandler,
     GetAllOrdersQueryHandler
@@ -94,3 +96,13 @@ def get_orders_by_status_handler(repo=Depends(get_order_repository)):
 def get_all_orders_handler(repo=Depends(get_order_repository)):
     """Dependency para obtener handler de obtener todas las órdenes"""
     return GetAllOrdersQueryHandler(repo)
+
+
+def get_request_return_handler(repo=Depends(get_order_repository)):
+    """Dependency para obtener handler de solicitar devolución"""
+    return RequestReturnCommandHandler(repo)
+
+
+def get_delete_order_handler(repo=Depends(get_order_repository)):
+    """Dependency para obtener handler de eliminar orden"""
+    return DeleteOrderCommandHandler(repo)

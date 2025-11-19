@@ -14,7 +14,8 @@ from shared.domain.events import event_bus
 from ..commands import (
     CreateOrderCommand, UpdateOrderCommand, ConfirmOrderCommand,
     CancelOrderCommand, MarkOrderPickedCommand, MarkOrderShippedCommand,
-    MarkOrderDeliveredCommand, AddReservationCommand, RemoveReservationCommand
+    MarkOrderDeliveredCommand, AddReservationCommand, RemoveReservationCommand,
+    RequestReturnCommand, DeleteOrderCommand
 )
 from ..queries import (
     GetOrderByIdQuery, GetOrdersByStatusQuery, GetAllOrdersQuery
@@ -72,7 +73,15 @@ class CreateOrderCommandHandler:
             items=order_items,
             reservations=command.reservations,
             eta=eta,
-            status=OrderStatus.PLACED
+            status=OrderStatus.PLACED,
+            client_id=command.client_id,
+            vendor_id=command.vendor_id,
+            delivery_address=command.delivery_address,
+            delivery_date=command.delivery_date,
+            contact_name=command.contact_name,
+            contact_phone=command.contact_phone,
+            notes=command.notes,
+            route_id=command.route_id
         )
         
         # Guardar orden
@@ -127,7 +136,29 @@ class UpdateOrderCommandHandler:
             )
             order.set_eta(eta)
         
-        order._updated_at = __import__('datetime').datetime.utcnow()
+        # Actualizar status si se proporciona
+        if command.status:
+            status_enum = OrderStatus(command.status)
+            if status_enum == OrderStatus.CONFIRMED:
+                order.confirm()
+            elif status_enum == OrderStatus.CANCELLED:
+                order.cancel()
+            elif status_enum == OrderStatus.PICKED:
+                order.mark_as_picked()
+            elif status_enum == OrderStatus.SHIPPED:
+                order.mark_as_shipped()
+            elif status_enum == OrderStatus.DELIVERED:
+                order.mark_as_delivered()
+        
+        # Actualizar información de entrega
+        order.update_delivery_info(
+            delivery_address=command.delivery_address,
+            delivery_date=command.delivery_date,
+            contact_name=command.contact_name,
+            contact_phone=command.contact_phone,
+            notes=command.notes,
+            route_id=command.route_id
+        )
         
         # Guardar orden
         order = await self.order_repository.save(order)
@@ -297,6 +328,39 @@ class RemoveReservationCommandHandler:
         return order
 
 
+class RequestReturnCommandHandler:
+    """Handler para el comando RequestReturn"""
+    
+    def __init__(self, order_repository: IOrderRepository):
+        self.order_repository = order_repository
+    
+    async def handle(self, command: RequestReturnCommand) -> Order:
+        """Manejar comando de solicitud de devolución"""
+        order = await self.order_repository.find_by_id(EntityId(command.order_id))
+        if not order:
+            raise ValueError(f"Orden {command.order_id} no encontrada")
+        
+        order.request_return(command.reason)
+        order = await self.order_repository.save(order)
+        
+        return order
+
+
+class DeleteOrderCommandHandler:
+    """Handler para el comando DeleteOrder"""
+    
+    def __init__(self, order_repository: IOrderRepository):
+        self.order_repository = order_repository
+    
+    async def handle(self, command: DeleteOrderCommand) -> bool:
+        """Manejar comando de eliminación de orden"""
+        deleted = await self.order_repository.delete(EntityId(command.order_id))
+        if not deleted:
+            raise ValueError(f"Orden {command.order_id} no encontrada")
+        
+        return True
+
+
 # ========== Query Handlers ==========
 
 class GetOrderByIdQueryHandler:
@@ -335,6 +399,9 @@ class GetAllOrdersQueryHandler:
     
     async def handle(self, query: GetAllOrdersQuery) -> list:
         """Manejar query de obtener todas las órdenes"""
-        orders = await self.order_repository.find_all(skip=query.skip, limit=query.limit)
+        status_enum = None
+        if query.status:
+            status_enum = OrderStatus(query.status)
+        orders = await self.order_repository.find_all(skip=query.skip, limit=query.limit, status=status_enum)
         return orders
 

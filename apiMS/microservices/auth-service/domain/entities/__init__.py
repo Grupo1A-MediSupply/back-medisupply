@@ -13,7 +13,7 @@ if shared_path not in sys.path:
 
 from shared.domain.entity import Entity
 from shared.domain.value_objects import EntityId, Email
-from ..value_objects import Username, HashedPassword, FullName, PhoneNumber
+from ..value_objects import Username, HashedPassword, FullName, PhoneNumber, UserRole, Address, InstitutionName
 from ..events import UserRegisteredEvent, UserLoggedInEvent, UserDeactivatedEvent
 
 
@@ -28,6 +28,9 @@ class User(Entity):
         hashed_password: HashedPassword,
         full_name: Optional[FullName] = None,
         phone_number: Optional[PhoneNumber] = None,
+        role: Optional[UserRole] = None,
+        address: Optional[Address] = None,
+        institution_name: Optional[InstitutionName] = None,
         is_active: bool = True,
         is_superuser: bool = False
     ):
@@ -37,6 +40,9 @@ class User(Entity):
         self._hashed_password = hashed_password
         self._full_name = full_name
         self._phone_number = phone_number
+        self._role = role
+        self._address = address
+        self._institution_name = institution_name
         self._is_active = is_active
         self._is_superuser = is_superuser
     
@@ -68,6 +74,18 @@ class User(Entity):
     def is_superuser(self) -> bool:
         return self._is_superuser
     
+    @property
+    def role(self) -> Optional[UserRole]:
+        return self._role
+    
+    @property
+    def address(self) -> Optional[Address]:
+        return self._address
+    
+    @property
+    def institution_name(self) -> Optional[InstitutionName]:
+        return self._institution_name
+    
     def change_password(self, new_hashed_password: HashedPassword):
         """Cambiar contraseña del usuario"""
         self._hashed_password = new_hashed_password
@@ -90,12 +108,22 @@ class User(Entity):
         self._is_active = True
         self._updated_at = datetime.utcnow()
     
-    def update_profile(self, full_name: Optional[FullName] = None, phone_number: Optional[PhoneNumber] = None):
+    def update_profile(
+        self, 
+        full_name: Optional[FullName] = None, 
+        phone_number: Optional[PhoneNumber] = None,
+        address: Optional[Address] = None,
+        institution_name: Optional[InstitutionName] = None
+    ):
         """Actualizar perfil del usuario"""
         if full_name:
             self._full_name = full_name
         if phone_number:
             self._phone_number = phone_number
+        if address is not None:
+            self._address = address
+        if institution_name is not None:
+            self._institution_name = institution_name
         self._updated_at = datetime.utcnow()
     
     @staticmethod
@@ -106,6 +134,9 @@ class User(Entity):
         hashed_password: HashedPassword,
         full_name: Optional[FullName] = None,
         phone_number: Optional[PhoneNumber] = None,
+        role: Optional[UserRole] = None,
+        address: Optional[Address] = None,
+        institution_name: Optional[InstitutionName] = None,
         is_active: bool = True,
         is_superuser: bool = False
     ) -> 'User':
@@ -117,6 +148,9 @@ class User(Entity):
             hashed_password=hashed_password,
             full_name=full_name,
             phone_number=phone_number,
+            role=role,
+            address=address,
+            institution_name=institution_name,
             is_active=is_active,
             is_superuser=is_superuser
         )

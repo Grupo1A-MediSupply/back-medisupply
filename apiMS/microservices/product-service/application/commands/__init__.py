@@ -2,16 +2,33 @@
 Comandos del servicio de productos
 """
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
+from datetime import datetime
+
+
+@dataclass
+class BatchData:
+    """Datos de un lote"""
+    batch: str
+    quantity: int
+    expiry: Optional[datetime] = None
+    location: Optional[str] = None
 
 
 @dataclass
 class CreateProductCommand:
     """Comando para crear un nuevo producto"""
     name: str
-    description: Optional[str]
-    price: float
+    description: Optional[str] = None
+    price: float = 0.0
     stock: int = 0
+    expiry: Optional[datetime] = None
+    lot: Optional[str] = None
+    warehouse: Optional[str] = None
+    supplier: Optional[str] = None
+    category: Optional[str] = None
+    batches: Optional[List[BatchData]] = None
+    vendor_id: Optional[str] = None
     is_active: bool = True
 
 
@@ -22,6 +39,12 @@ class UpdateProductCommand:
     name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
+    expiry: Optional[datetime] = None
+    lot: Optional[str] = None
+    warehouse: Optional[str] = None
+    supplier: Optional[str] = None
+    category: Optional[str] = None
+    batches: Optional[List[BatchData]] = None
 
 
 @dataclass

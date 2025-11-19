@@ -41,6 +41,15 @@ class ReturnsReport(BaseModel):
     total_refund_amount: float
 
 
+class ConsolidatedReportsResponse(BaseModel):
+    """Response consolidado de reportes"""
+    ordersByStatus: Dict[str, int]
+    inventoryStatus: Dict[str, int]
+    returnsByReason: Dict[str, int]
+    routesStats: Dict[str, int]
+    totalReturns: int
+
+
 # ========== Endpoints ==========
 
 @router.get(
@@ -133,4 +142,60 @@ async def get_returns_report():
     }
     
     return mock_data
+
+
+@router.get(
+    "/reports",
+    response_model=ConsolidatedReportsResponse,
+    summary="Reporte consolidado",
+    description="Genera un reporte consolidado con todos los datos principales"
+)
+async def get_consolidated_reports():
+    """Obtener reporte consolidado"""
+    # TODO: Implementar lógica real consultando todos los servicios
+    # Por ahora retorna mock data consolidado según especificación
+    
+    # Simular datos de órdenes por estado
+    orders_by_status = {
+        "Creado": 5,
+        "Programado": 3,
+        "En Tránsito": 2,
+        "Completado": 15,
+        "Pendiente": 1
+    }
+    
+    # Simular datos de inventario
+    inventory_status = {
+        "normalStock": 45,
+        "lowStock": 8,
+        "expiringSoon": 3,
+        "expired": 0
+    }
+    
+    # Simular datos de devoluciones por razón
+    returns_by_reason = {
+        "Producto Defectuoso": 5,
+        "Pedido Incorrecto": 3,
+        "Daño en Transporte": 2,
+        "Cliente No Satisfecho": 1
+    }
+    
+    # Simular datos de rutas
+    routes_stats = {
+        "total": 20,
+        "active": 3,
+        "completed": 15,
+        "pending": 2
+    }
+    
+    # Calcular total de devoluciones
+    total_returns = sum(returns_by_reason.values())
+    
+    return ConsolidatedReportsResponse(
+        ordersByStatus=orders_by_status,
+        inventoryStatus=inventory_status,
+        returnsByReason=returns_by_reason,
+        routesStats=routes_stats,
+        totalReturns=total_returns
+    )
 
