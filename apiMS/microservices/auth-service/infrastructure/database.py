@@ -22,27 +22,34 @@ _SessionLocal = None
 
 
 def _init_database():
-    """Inicializar engine y SessionLocal, forzando reinicialización del singleton de settings"""
+    """Inicializar engine y SessionLocal, leyendo directamente las variables de entorno"""
     global _engine, _SessionLocal
     
-    # Forzar reinicialización del singleton de settings para asegurar que lea variables de entorno
-    try:
-        from . import config as config_module
-    except ImportError:
-        import infrastructure.config as config_module
+    # Leer directamente de variables de entorno en lugar de usar el singleton
+    # Esto asegura que siempre leamos los valores más actuales
+    import os
     
-    # Resetear el singleton para que lea las variables de entorno frescas
-    config_module._settings = None
+    # Leer AUTH_DATABASE_URL directamente de os.environ
+    database_url = os.environ.get(
+        "AUTH_DATABASE_URL",
+        "sqlite:///./auth_service.db"  # Valor por defecto
+    )
     
-    # Obtener settings frescas
-    settings = get_settings()
+    # Leer DEBUG también
+    debug_str = os.environ.get("DEBUG", "false")
+    debug = debug_str.lower() in ("true", "1", "yes")
     
-    # Crear engine y SessionLocal
+    # Logging para diagnóstico
+    print(f"🔍 _init_database() - Leyendo variables de entorno directamente")
+    print(f"   AUTH_DATABASE_URL presente: {bool(os.environ.get('AUTH_DATABASE_URL'))}")
+    print(f"   URL leída: {database_url[:100]}...")
+    
+    # Crear engine y SessionLocal con la URL leída directamente
     _engine = create_engine(
-        settings.database_url,
+        database_url,
         poolclass=StaticPool,
-        connect_args={"check_same_thread": False} if "sqlite" in settings.database_url.lower() else {},
-        echo=settings.debug
+        connect_args={"check_same_thread": False} if "sqlite" in database_url.lower() else {},
+        echo=debug
     )
     _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
     return _engine, _SessionLocal
@@ -76,17 +83,21 @@ def get_db():
 
 def create_tables():
     """Crear todas las tablas"""
-    # Inicializar engine y SessionLocal, forzando reinicialización del singleton de settings
+    # Inicializar engine y SessionLocal leyendo directamente de variables de entorno
     engine, _ = _init_database()
     
-    # Obtener settings para logging (después de reinicializar)
-    settings = get_settings()
+    # Leer URL directamente de variables de entorno para logging
+    import os
+    database_url = os.environ.get(
+        "AUTH_DATABASE_URL",
+        "sqlite:///./auth_service.db"
+    )
     
     # Logging de configuración
     print(f"🔌 Configurando conexión a base de datos...")
-    print(f"   URL: {settings.database_url[:100]}...")  # Mostrar primeros 100 caracteres
-    print(f"   Usando SQLite: {'sqlite' in settings.database_url.lower()}")
-    print(f"   Usando Cloud SQL: {'cloudsql' in settings.database_url.lower()}")
+    print(f"   URL: {database_url[:100]}...")  # Mostrar primeros 100 caracteres
+    print(f"   Usando SQLite: {'sqlite' in database_url.lower()}")
+    print(f"   Usando Cloud SQL: {'cloudsql' in database_url.lower() or '/cloudsql/' in database_url}")
     
     # Probar la conexión antes de crear tablas
     try:
@@ -95,7 +106,7 @@ def create_tables():
             result = conn.execute(text("SELECT 1"))
             print(f"✅ Conexión a base de datos exitosa")
             # Verificar qué base de datos estamos usando
-            if "sqlite" not in settings.database_url.lower():
+            if "sqlite" not in database_url.lower():
                 try:
                     db_result = conn.execute(text("SELECT current_database()"))
                     db_name = db_result.scalar()
@@ -123,7 +134,7 @@ def create_tables():
         print(f"✅ create_all() ejecutado. Tablas a crear: {len(table_names)}")
         
         # Verificar que las tablas se crearon
-        if "sqlite" not in settings.database_url.lower():
+        if "sqlite" not in database_url.lower():
             try:
                 from sqlalchemy import text, inspect
                 inspector = inspect(engine)
