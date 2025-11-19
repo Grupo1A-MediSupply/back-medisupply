@@ -9,12 +9,16 @@ try:
     # Imports relativos (cuando se ejecuta como módulo)
     from .infrastructure.config import get_settings
     from .infrastructure.database import create_tables
+    # Importar modelos para que se registren en Base.metadata antes de create_tables()
+    from .infrastructure.repositories import UserModel, VerificationCodeModel
     from .api.routes import router
     from .application.services import UserEventHandler, setup_event_handlers
 except ImportError:
     # Imports absolutos (cuando se ejecuta directamente)
     from infrastructure.config import get_settings
     from infrastructure.database import create_tables
+    # Importar modelos para que se registren en Base.metadata antes de create_tables()
+    from infrastructure.repositories import UserModel, VerificationCodeModel
     from api.routes import router
     from application.services import UserEventHandler, setup_event_handlers
 

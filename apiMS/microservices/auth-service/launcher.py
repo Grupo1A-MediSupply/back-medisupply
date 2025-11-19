@@ -25,6 +25,8 @@ __main__.__package__ = 'auth_service_module'
 # Importar manualmente los módulos necesarios con imports absolutos
 import infrastructure.config
 import infrastructure.database
+# Importar modelos para que se registren en Base.metadata antes de create_tables()
+import infrastructure.repositories  # Esto importa UserModel y VerificationCodeModel
 import api.routes
 import application.services
 
