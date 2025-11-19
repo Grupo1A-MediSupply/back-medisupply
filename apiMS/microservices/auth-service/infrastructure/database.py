@@ -16,25 +16,58 @@ except ImportError:
     # Importar modelos para asegurar que se registren en Base.metadata
     from infrastructure.repositories import UserModel, VerificationCodeModel
 
-settings = get_settings()
+# Engine y SessionLocal se inicializarán de forma lazy cuando se necesiten
+_engine = None
+_SessionLocal = None
 
-# Motor de base de datos
-# NOTA: No hacer logging aquí porque se ejecuta al importar el módulo
-# y la variable de entorno puede no estar disponible aún
-engine = create_engine(
-    settings.database_url,
-    poolclass=StaticPool,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {},
-    echo=settings.debug
-)
 
-# Session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+def _init_database():
+    """Inicializar engine y SessionLocal, forzando reinicialización del singleton de settings"""
+    global _engine, _SessionLocal
+    
+    # Forzar reinicialización del singleton de settings para asegurar que lea variables de entorno
+    try:
+        from . import config as config_module
+    except ImportError:
+        import infrastructure.config as config_module
+    
+    # Resetear el singleton para que lea las variables de entorno frescas
+    config_module._settings = None
+    
+    # Obtener settings frescas
+    settings = get_settings()
+    
+    # Crear engine y SessionLocal
+    _engine = create_engine(
+        settings.database_url,
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False} if "sqlite" in settings.database_url.lower() else {},
+        echo=settings.debug
+    )
+    _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
+    return _engine, _SessionLocal
+
+
+def __getattr__(name):
+    """Permitir acceso lazy a engine y SessionLocal"""
+    global _engine, _SessionLocal
+    if name == 'engine':
+        if _engine is None:
+            _engine, _SessionLocal = _init_database()
+        return _engine
+    elif name == 'SessionLocal':
+        if _SessionLocal is None:
+            _engine, _SessionLocal = _init_database()
+        return _SessionLocal
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
 def get_db():
     """Dependency para obtener sesión de base de datos"""
-    db = SessionLocal()
+    # Acceso lazy a SessionLocal
+    if _SessionLocal is None:
+        _init_database()
+    db = _SessionLocal()
     try:
         yield db
     finally:
@@ -43,6 +76,12 @@ def get_db():
 
 def create_tables():
     """Crear todas las tablas"""
+    # Inicializar engine y SessionLocal, forzando reinicialización del singleton de settings
+    engine, _ = _init_database()
+    
+    # Obtener settings para logging (después de reinicializar)
+    settings = get_settings()
+    
     # Logging de configuración
     print(f"🔌 Configurando conexión a base de datos...")
     print(f"   URL: {settings.database_url[:100]}...")  # Mostrar primeros 100 caracteres
@@ -99,4 +138,3 @@ def create_tables():
         import traceback
         traceback.print_exc()
         raise
-
