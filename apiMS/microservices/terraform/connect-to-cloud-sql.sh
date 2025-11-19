@@ -120,8 +120,17 @@ method_proxy_auto() {
     echo -e "${GREEN}Conectando automáticamente con Cloud SQL Proxy...${NC}"
     echo ""
     
-    # Verificar si cloud-sql-proxy está instalado
-    if ! command -v cloud-sql-proxy &> /dev/null; then
+    # Verificar si cloud-sql-proxy está instalado y obtener su ruta
+    PROXY_CMD=""
+    if command -v cloud-sql-proxy &> /dev/null; then
+        PROXY_CMD="cloud-sql-proxy"
+    elif [ -f "/usr/local/bin/cloud-sql-proxy" ]; then
+        PROXY_CMD="/usr/local/bin/cloud-sql-proxy"
+    elif [ -f "$HOME/cloud-sql-proxy" ]; then
+        PROXY_CMD="$HOME/cloud-sql-proxy"
+    elif [ -f "./cloud-sql-proxy" ]; then
+        PROXY_CMD="./cloud-sql-proxy"
+    else
         echo "❌ Cloud SQL Proxy no está instalado."
         echo "Instalando..."
         
@@ -136,16 +145,39 @@ method_proxy_auto() {
         
         PROXY_URL="https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.8.0/cloud-sql-proxy.${OS}.${ARCH}"
         
-        curl -o cloud-sql-proxy "$PROXY_URL"
-        chmod +x cloud-sql-proxy
-        mv cloud-sql-proxy /usr/local/bin/ 2>/dev/null || mv cloud-sql-proxy ./cloud-sql-proxy
+        # Descargar en un directorio temporal
+        TEMP_DIR=$(mktemp -d)
+        curl -o "${TEMP_DIR}/cloud-sql-proxy" "$PROXY_URL"
+        chmod +x "${TEMP_DIR}/cloud-sql-proxy"
+        
+        # Intentar mover a /usr/local/bin, si falla usar ~/cloud-sql-proxy
+        if sudo mv "${TEMP_DIR}/cloud-sql-proxy" /usr/local/bin/ 2>/dev/null; then
+            PROXY_CMD="/usr/local/bin/cloud-sql-proxy"
+        elif mv "${TEMP_DIR}/cloud-sql-proxy" "$HOME/cloud-sql-proxy" 2>/dev/null; then
+            PROXY_CMD="$HOME/cloud-sql-proxy"
+        else
+            PROXY_CMD="${TEMP_DIR}/cloud-sql-proxy"
+        fi
+        
+        rmdir "${TEMP_DIR}" 2>/dev/null || true
     fi
     
     CONNECTION_NAME=$(get_connection_name)
+    
+    # Detectar puerto disponible (5432 o 5433)
     PROXY_PORT=5432
+    if lsof -Pi :5432 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        echo "⚠️  Puerto 5432 está en uso, usando puerto alternativo 5433"
+        PROXY_PORT=5433
+        if lsof -Pi :5433 -sTCP:LISTEN -t >/dev/null 2>&1; then
+            echo "⚠️  Puerto 5433 también está en uso, usando 5434"
+            PROXY_PORT=5434
+        fi
+    fi
     
     echo "Iniciando Cloud SQL Proxy..."
     echo "Connection: ${CONNECTION_NAME}"
+    echo "Puerto: ${PROXY_PORT}"
     echo ""
     
     # Obtener contraseña
@@ -163,15 +195,36 @@ method_proxy_auto() {
     else
         echo "✅ Contraseña obtenida."
         echo ""
-        echo "Iniciando proxy en background..."
-        cloud-sql-proxy "${CONNECTION_NAME}" --port=${PROXY_PORT} &
-        PROXY_PID=$!
-        sleep 3
         
+        # Limpiar procesos anteriores del proxy
+        pkill -f "cloud-sql-proxy.*${CONNECTION_NAME}" 2>/dev/null || true
+        sleep 1
+        
+        echo "Iniciando proxy en background..."
+        echo "Usando: ${PROXY_CMD}"
+        "${PROXY_CMD}" "${CONNECTION_NAME}" --port=${PROXY_PORT} > /tmp/cloud-sql-proxy.log 2>&1 &
+        PROXY_PID=$!
+        sleep 4
+        
+        # Verificar que el proxy está corriendo
+        if ! ps -p $PROXY_PID > /dev/null 2>&1; then
+            echo "❌ Error: El proxy no se inició correctamente"
+            echo "Revisa los logs:"
+            cat /tmp/cloud-sql-proxy.log | tail -5
+            echo ""
+            echo "💡 Alternativa: Usa gcloud sql connect directamente:"
+            echo "   gcloud sql connect project-65436llm-postgres-instance --user=${USER} --database=${DATABASE}"
+            return 1
+        fi
+        
+        echo "✅ Proxy iniciado correctamente (PID: $PROXY_PID)"
         echo "Conectando a la base de datos..."
+        echo ""
         PGPASSWORD="${PASSWORD}" psql -h 127.0.0.1 -p ${PROXY_PORT} -U ${USER} -d ${DATABASE}
         
         # Limpiar proxy al salir
+        echo ""
+        echo "Cerrando proxy..."
         kill $PROXY_PID 2>/dev/null || true
     fi
 }
