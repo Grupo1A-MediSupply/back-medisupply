@@ -19,12 +19,36 @@ except ImportError:
 settings = get_settings()
 
 # Motor de base de datos
+print(f"🔌 Configurando conexión a base de datos...")
+print(f"   URL: {settings.database_url[:100]}...")  # Mostrar primeros 100 caracteres
+print(f"   Usando SQLite: {'sqlite' in settings.database_url.lower()}")
+print(f"   Usando Cloud SQL: {'cloudsql' in settings.database_url.lower()}")
+
 engine = create_engine(
     settings.database_url,
     poolclass=StaticPool,
     connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {},
     echo=settings.debug
 )
+
+# Probar la conexión al inicializar
+try:
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT 1"))
+        print(f"✅ Conexión a base de datos exitosa")
+        # Verificar qué base de datos estamos usando
+        if "sqlite" not in settings.database_url.lower():
+            try:
+                db_result = conn.execute(text("SELECT current_database()"))
+                db_name = db_result.scalar()
+                print(f"   Base de datos: {db_name}")
+            except:
+                pass
+except Exception as e:
+    print(f"❌ Error al conectar a la base de datos: {e}")
+    import traceback
+    traceback.print_exc()
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
