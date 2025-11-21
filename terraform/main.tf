@@ -132,16 +132,18 @@ resource "google_secret_manager_secret" "secret_key" {
 
 # Versión del secret SECRET_KEY (crear si se proporciona el valor)
 # Esto funciona tanto para secrets existentes como para nuevos
-# Usar secret_id simple (solo el nombre) en lugar del ID completo
+# El campo 'secret' puede usar el nombre simple o el ID completo
 resource "google_secret_manager_secret_version" "secret_key" {
   count       = var.secret_key != "" ? 1 : 0
-  secret      = local.secret_key_id_simple
+  # Usar el nombre simple del secret (funciona tanto para existentes como nuevos)
+  secret      = "${var.project_name}-secret-key"
   secret_data = var.secret_key
 
   depends_on = [
     google_secret_manager_secret.secret_key,
     data.google_secret_manager_secret.secret_key_existing,
-    google_secret_manager_secret_iam_member.secret_key_accessor
+    google_secret_manager_secret_iam_member.secret_key_accessor,
+    google_project_service.required_apis
   ]
 }
 
