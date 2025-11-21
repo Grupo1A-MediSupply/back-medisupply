@@ -47,9 +47,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     
-    # Incluir routers
+    # Incluir routers con base URL unificada
     app.include_router(router, prefix="/api/v1", tags=["inventory"])
-    app.include_router(router, prefix="/api", tags=["inventory"])
     
     @app.get("/")
     async def root():

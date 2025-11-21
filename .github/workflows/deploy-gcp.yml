@@ -6,6 +6,7 @@ on:
       - main
       - develop
       - release
+      - feature/*
   pull_request:
     branches:
       - main
@@ -125,6 +126,42 @@ jobs:
           .
         docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/notifications-service:${{ github.sha }}
         docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/notifications-service:latest
+    
+    - name: 📦 Build and Push Inventory Service
+      working-directory: apiMS/microservices
+      run: |
+        docker build \
+          --platform linux/amd64 \
+          -f inventory-service/Dockerfile \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/inventory-service:${{ github.sha }} \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/inventory-service:latest \
+          .
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/inventory-service:${{ github.sha }}
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/inventory-service:latest
+    
+    - name: 📦 Build and Push Reports Service
+      working-directory: apiMS/microservices
+      run: |
+        docker build \
+          --platform linux/amd64 \
+          -f reports-service/Dockerfile \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/reports-service:${{ github.sha }} \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/reports-service:latest \
+          .
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/reports-service:${{ github.sha }}
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/reports-service:latest
+    
+    - name: 📦 Build and Push API Gateway
+      working-directory: apiMS/microservices
+      run: |
+        docker build \
+          --platform linux/amd64 \
+          -f api-gateway/Dockerfile \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/api-gateway:${{ github.sha }} \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/api-gateway:latest \
+          .
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/api-gateway:${{ github.sha }}
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/api-gateway:latest
 
   # ============================================================================
   # Deploy with Terraform
@@ -168,7 +205,7 @@ jobs:
         echo "🔍 Verificando recursos Cloud Run existentes..."
         
         # Servicios a verificar
-        SERVICES=("auth-service" "product-service" "order-service" "logistics-service" "notifications-service")
+        SERVICES=("auth-service" "product-service" "order-service" "logistics-service" "notifications-service" "inventory-service" "reports-service" "api-gateway")
         FOUND_SERVICES=()
         
         for service in "${SERVICES[@]}"; do
@@ -257,7 +294,7 @@ jobs:
             
             # Importar bases de datos si existen
             echo "📊 Verificando bases de datos..."
-            DATABASES=("auth_service" "product_service" "order_service" "logistics_service" "notifications_service")
+            DATABASES=("auth_service" "product_service" "order_service" "logistics_service" "notifications_service" "inventory_service" "reports_service")
             for DB_NAME in "${DATABASES[@]}"; do
               if gcloud sql databases describe "$DB_NAME" --instance="$INSTANCE_NAME" --project="$PROJECT_ID" &>/dev/null; then
                 echo "   📊 Importando base de datos: $DB_NAME"
@@ -277,6 +314,12 @@ jobs:
                   "notifications_service")
                     terraform import "google_sql_database.notifications_db[0]" "${PROJECT_ID}/${INSTANCE_NAME}/${DB_NAME}" 2>/dev/null || echo "      ✅ Ya importado"
                     ;;
+                  "inventory_service")
+                    terraform import "google_sql_database.inventory_db[0]" "${PROJECT_ID}/${INSTANCE_NAME}/${DB_NAME}" 2>/dev/null || echo "      ✅ Ya importado"
+                    ;;
+                  "reports_service")
+                    terraform import "google_sql_database.reports_db[0]" "${PROJECT_ID}/${INSTANCE_NAME}/${DB_NAME}" 2>/dev/null || echo "      ✅ Ya importado"
+                    ;;
                 esac
               else
                 echo "   ℹ️  Base de datos ($DB_NAME) no existe, se creará automáticamente"
@@ -295,6 +338,8 @@ jobs:
             ["order-service-db-password"]="google_secret_manager_secret.order_db_password[0]"
             ["logistics-service-db-password"]="google_secret_manager_secret.logistics_db_password[0]"
             ["notifications-service-db-password"]="google_secret_manager_secret.notifications_db_password[0]"
+            ["inventory-service-db-password"]="google_secret_manager_secret.inventory_db_password[0]"
+            ["reports-service-db-password"]="google_secret_manager_secret.reports_db_password[0]"
           )
           
           for DB_SECRET in "${!DB_SECRETS[@]}"; do
@@ -314,6 +359,19 @@ jobs:
         
         echo "✅ Importación completada"
     
+    - name: 🔍 Debug Información del Workflow
+      run: |
+        echo "🔍 Información del workflow:"
+        echo "  Evento: ${{ github.event_name }}"
+        echo "  Rama: ${{ github.ref }}"
+        echo "  SHA: ${{ github.sha }}"
+        echo "  Actor: ${{ github.actor }}"
+        echo ""
+        echo "🔍 Condiciones para terraform apply:"
+        echo "  - github.event_name == 'push': ${{ github.event_name == 'push' }}"
+        echo "  - github.event_name == 'workflow_dispatch': ${{ github.event_name == 'workflow_dispatch' }}"
+        echo "  - Condición completa: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}"
+    
     - name: ✅ Terraform Validate
       working-directory: apiMS/microservices/terraform
       run: |
@@ -327,17 +385,52 @@ jobs:
         TF_VAR_region: us-central1
         TF_VAR_enable_cloud_sql: ${{ secrets.ENABLE_CLOUD_SQL || vars.ENABLE_CLOUD_SQL || 'true' }}
       run: |
+        set -e  # Salir si cualquier comando falla (excepto donde se desactive explícitamente)
         echo "📋 Generando plan de Terraform..."
-        terraform plan -out=tfplan
+        echo "🔍 Evento que disparó el workflow: ${{ github.event_name }}"
+        echo "🔍 Rama: ${{ github.ref }}"
         
-        # Mostrar resumen del plan
-        echo ""
-        echo "📊 Resumen del plan:"
-        terraform show -json tfplan | jq -r '
-          .resource_changes[] | 
-          select(.change.actions != null and (.change.actions | length > 0)) |
-          "  \(.change.actions[0]) \(.address)"
-        ' || echo "  No hay cambios planificados"
+        # Generar el plan
+        # Redirigir stderr a stdout para capturar todos los mensajes
+        if terraform plan -out=tfplan 2>&1 | tee /tmp/terraform-plan.log; then
+          echo "✅ Plan generado exitosamente"
+          
+          # Verificar que el archivo del plan existe
+          if [ -f "tfplan" ]; then
+            echo "✅ Archivo tfplan creado correctamente"
+            PLAN_SIZE=$(ls -lh tfplan | awk '{print $5}')
+            echo "📦 Tamaño del plan: $PLAN_SIZE"
+          else
+            echo "❌ ERROR: El archivo tfplan no se creó"
+            exit 1
+          fi
+          
+          # Mostrar resumen del plan
+          echo ""
+          echo "📊 Resumen del plan:"
+          # Guardar el JSON en una variable temporal para evitar problemas de pipe
+          set +e
+          PLAN_JSON=$(terraform show -json tfplan 2>&1)
+          if [ $? -eq 0 ] && [ -n "$PLAN_JSON" ]; then
+            echo "$PLAN_JSON" | jq -r '
+              .resource_changes[] | 
+              select(.change.actions != null and (.change.actions | length > 0)) |
+              "  \(.change.actions[0]) \(.address)"
+            ' 2>/dev/null || echo "  No hay cambios planificados"
+          else
+            echo "  ⚠️  No se pudo obtener el resumen del plan"
+          fi
+          set -e
+        else
+          echo "❌ ERROR: Falló la generación del plan"
+          echo "🔍 Mostrando últimos logs de terraform..."
+          if [ -f /tmp/terraform-plan.log ]; then
+            tail -50 /tmp/terraform-plan.log
+          else
+            echo "⚠️  No se encontraron logs guardados"
+          fi
+          exit 1
+        fi
     
     - name: 🚀 Terraform Apply
       if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -348,19 +441,98 @@ jobs:
         TF_VAR_region: us-central1
         TF_VAR_enable_cloud_sql: ${{ secrets.ENABLE_CLOUD_SQL || vars.ENABLE_CLOUD_SQL || 'true' }}
       run: |
-        terraform apply -auto-approve tfplan
+        set -e  # Salir si cualquier comando falla
+        echo "🚀 Iniciando Terraform Apply..."
+        echo "🔍 Evento: ${{ github.event_name }}"
+        echo "🔍 Rama: ${{ github.ref }}"
+        
+        # Verificar que el plan existe
+        if [ ! -f "tfplan" ]; then
+          echo "❌ ERROR: El archivo tfplan no existe"
+          echo "💡 Esto puede ocurrir si el paso 'Terraform Plan' falló o no se ejecutó"
+          exit 1
+        fi
+        
+        echo "✅ Archivo tfplan encontrado"
+        PLAN_SIZE=$(ls -lh tfplan | awk '{print $5}')
+        echo "📦 Tamaño del plan: $PLAN_SIZE"
+        
+        # Mostrar un resumen del plan antes de aplicar
+        echo ""
+        echo "📋 Resumen del plan a aplicar:"
+        set +e
+        terraform show -no-color tfplan 2>&1 | head -30 || echo "⚠️  No se pudo mostrar el resumen"
+        set -e
+        echo "..."
+        
+        # Aplicar el plan
+        echo ""
+        echo "🚀 Aplicando cambios..."
+        if terraform apply -auto-approve tfplan; then
+          echo "✅ Terraform apply completado exitosamente"
+        else
+          echo "❌ ERROR: Terraform apply falló"
+          echo "🔍 Mostrando últimos logs..."
+          terraform apply -auto-approve tfplan 2>&1 | tail -50
+          exit 1
+        fi
     
     - name: 📊 Get Service URLs
       if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       working-directory: apiMS/microservices/terraform
       run: |
+        set +e  # No fallar si algún output no existe
         echo "🔗 URLs de Servicios:" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "Auth Service: $(terraform output -raw auth_service_url)" >> $GITHUB_STEP_SUMMARY
-        echo "Product Service: $(terraform output -raw product_service_url)" >> $GITHUB_STEP_SUMMARY
-        echo "Order Service: $(terraform output -raw order_service_url)" >> $GITHUB_STEP_SUMMARY
-        echo "Logistics Service: $(terraform output -raw logistics_service_url)" >> $GITHUB_STEP_SUMMARY
-        echo "Notifications Service: $(terraform output -raw notifications_service_url)" >> $GITHUB_STEP_SUMMARY
+        
+        # Función helper para obtener URLs de forma segura
+        get_url() {
+          local output_name=$1
+          # Capturar solo stdout, redirigir stderr a /dev/null
+          # Filtrar mensajes de error de GitHub Actions
+          local url=$(terraform output -raw "$output_name" 2>/dev/null | grep -v "^::error::" | grep -v "^::warning::" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+          
+          # Verificar que la URL es válida (no está vacía, no es null, no es un mensaje de error)
+          if [ $? -eq 0 ] && [ -n "$url" ] && [ "$url" != "null" ] && [[ ! "$url" =~ ^:: ]]; then
+            echo "$url"
+          else
+            echo "N/A"
+          fi
+        }
+        
+        # Obtener URLs de todos los servicios
+        API_GATEWAY_URL=$(get_url "api_gateway_url")
+        AUTH_URL=$(get_url "auth_service_url")
+        PRODUCT_URL=$(get_url "product_service_url")
+        ORDER_URL=$(get_url "order_service_url")
+        LOGISTICS_URL=$(get_url "logistics_service_url")
+        NOTIFICATIONS_URL=$(get_url "notifications_service_url")
+        INVENTORY_URL=$(get_url "inventory_service_url")
+        REPORTS_URL=$(get_url "reports_service_url")
+        
+        # Escribir al summary
+        echo "API Gateway: $API_GATEWAY_URL" >> $GITHUB_STEP_SUMMARY
+        echo "Auth Service: $AUTH_URL" >> $GITHUB_STEP_SUMMARY
+        echo "Product Service: $PRODUCT_URL" >> $GITHUB_STEP_SUMMARY
+        echo "Order Service: $ORDER_URL" >> $GITHUB_STEP_SUMMARY
+        echo "Logistics Service: $LOGISTICS_URL" >> $GITHUB_STEP_SUMMARY
+        echo "Notifications Service: $NOTIFICATIONS_URL" >> $GITHUB_STEP_SUMMARY
+        echo "Inventory Service: $INVENTORY_URL" >> $GITHUB_STEP_SUMMARY
+        echo "Reports Service: $REPORTS_URL" >> $GITHUB_STEP_SUMMARY
+        
+        # También mostrar en los logs
+        echo ""
+        echo "📊 URLs de Servicios Desplegados:"
+        echo "=================================="
+        echo "API Gateway: $API_GATEWAY_URL"
+        echo "Auth Service: $AUTH_URL"
+        echo "Product Service: $PRODUCT_URL"
+        echo "Order Service: $ORDER_URL"
+        echo "Logistics Service: $LOGISTICS_URL"
+        echo "Notifications Service: $NOTIFICATIONS_URL"
+        echo "Inventory Service: $INVENTORY_URL"
+        echo "Reports Service: $REPORTS_URL"
+        set -e
 
   # ============================================================================
   # Health Check
@@ -395,20 +567,26 @@ jobs:
     - name: 🏥 Health Check Services
       working-directory: apiMS/microservices/terraform
       run: |
+        API_GATEWAY_URL=$(terraform output -raw api_gateway_url 2>/dev/null || echo "")
         AUTH_URL=$(terraform output -raw auth_service_url)
         PRODUCT_URL=$(terraform output -raw product_service_url)
         ORDER_URL=$(terraform output -raw order_service_url)
         LOGISTICS_URL=$(terraform output -raw logistics_service_url)
         NOTIFICATIONS_URL=$(terraform output -raw notifications_service_url)
+        INVENTORY_URL=$(terraform output -raw inventory_service_url 2>/dev/null || echo "")
+        REPORTS_URL=$(terraform output -raw reports_service_url 2>/dev/null || echo "")
         
         echo "🔍 Verificando salud de servicios..."
         echo ""
         echo "📋 URLs de los servicios:"
+        [ -n "$API_GATEWAY_URL" ] && echo "   API Gateway: $API_GATEWAY_URL"
         echo "   Auth Service: $AUTH_URL"
         echo "   Product Service: $PRODUCT_URL"
         echo "   Order Service: $ORDER_URL"
         echo "   Logistics Service: $LOGISTICS_URL"
         echo "   Notifications Service: $NOTIFICATIONS_URL"
+        [ -n "$INVENTORY_URL" ] && echo "   Inventory Service: $INVENTORY_URL"
+        [ -n "$REPORTS_URL" ] && echo "   Reports Service: $REPORTS_URL"
         echo ""
         
         # Función para verificar servicio con retry mejorado
@@ -458,11 +636,14 @@ jobs:
         # Contador de servicios fallidos
         failed_services=0
         
+        [ -n "$API_GATEWAY_URL" ] && check_service "API Gateway" "$API_GATEWAY_URL" || failed_services=$((failed_services + 1))
         check_service "Auth Service" "$AUTH_URL" || failed_services=$((failed_services + 1))
         check_service "Product Service" "$PRODUCT_URL" || failed_services=$((failed_services + 1))
         check_service "Order Service" "$ORDER_URL" || failed_services=$((failed_services + 1))
         check_service "Logistics Service" "$LOGISTICS_URL" || failed_services=$((failed_services + 1))
         check_service "Notifications Service" "$NOTIFICATIONS_URL" || failed_services=$((failed_services + 1))
+        [ -n "$INVENTORY_URL" ] && check_service "Inventory Service" "$INVENTORY_URL" || failed_services=$((failed_services + 1))
+        [ -n "$REPORTS_URL" ] && check_service "Reports Service" "$REPORTS_URL" || failed_services=$((failed_services + 1))
         
         echo ""
         echo "📊 Resumen de Health Checks:"

@@ -16,25 +16,65 @@ except ImportError:
     # Importar modelos para asegurar que se registren en Base.metadata
     from infrastructure.repositories import UserModel, VerificationCodeModel
 
-settings = get_settings()
+# Engine y SessionLocal se inicializarán de forma lazy cuando se necesiten
+_engine = None
+_SessionLocal = None
 
-# Motor de base de datos
-# NOTA: No hacer logging aquí porque se ejecuta al importar el módulo
-# y la variable de entorno puede no estar disponible aún
-engine = create_engine(
-    settings.database_url,
-    poolclass=StaticPool,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {},
-    echo=settings.debug
-)
 
-# Session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+def _init_database():
+    """Inicializar engine y SessionLocal, leyendo directamente las variables de entorno"""
+    global _engine, _SessionLocal
+    
+    # Leer directamente de variables de entorno en lugar de usar el singleton
+    # Esto asegura que siempre leamos los valores más actuales
+    import os
+    
+    # Leer AUTH_DATABASE_URL directamente de os.environ
+    database_url = os.environ.get(
+        "AUTH_DATABASE_URL",
+        "sqlite:///./auth_service.db"  # Valor por defecto
+    )
+    
+    # Leer DEBUG también
+    debug_str = os.environ.get("DEBUG", "false")
+    debug = debug_str.lower() in ("true", "1", "yes")
+    
+    # Logging para diagnóstico
+    print(f"🔍 _init_database() - Leyendo variables de entorno directamente")
+    print(f"   AUTH_DATABASE_URL presente: {bool(os.environ.get('AUTH_DATABASE_URL'))}")
+    print(f"   URL leída: {database_url[:100]}...")
+    
+    # Crear engine y SessionLocal con la URL leída directamente
+    _engine = create_engine(
+        database_url,
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False} if "sqlite" in database_url.lower() else {},
+        echo=debug
+    )
+    _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
+    return _engine, _SessionLocal
+
+
+def __getattr__(name):
+    """Permitir acceso lazy a engine y SessionLocal"""
+    global _engine, _SessionLocal
+    if name == 'engine':
+        if _engine is None:
+            _engine, _SessionLocal = _init_database()
+        return _engine
+    elif name == 'SessionLocal':
+        if _SessionLocal is None:
+            _engine, _SessionLocal = _init_database()
+        return _SessionLocal
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
 def get_db():
     """Dependency para obtener sesión de base de datos"""
-    db = SessionLocal()
+    # Acceso lazy a SessionLocal
+    if _SessionLocal is None:
+        _init_database()
+    db = _SessionLocal()
     try:
         yield db
     finally:
@@ -43,11 +83,21 @@ def get_db():
 
 def create_tables():
     """Crear todas las tablas"""
+    # Inicializar engine y SessionLocal leyendo directamente de variables de entorno
+    engine, _ = _init_database()
+    
+    # Leer URL directamente de variables de entorno para logging
+    import os
+    database_url = os.environ.get(
+        "AUTH_DATABASE_URL",
+        "sqlite:///./auth_service.db"
+    )
+    
     # Logging de configuración
     print(f"🔌 Configurando conexión a base de datos...")
-    print(f"   URL: {settings.database_url[:100]}...")  # Mostrar primeros 100 caracteres
-    print(f"   Usando SQLite: {'sqlite' in settings.database_url.lower()}")
-    print(f"   Usando Cloud SQL: {'cloudsql' in settings.database_url.lower()}")
+    print(f"   URL: {database_url[:100]}...")  # Mostrar primeros 100 caracteres
+    print(f"   Usando SQLite: {'sqlite' in database_url.lower()}")
+    print(f"   Usando Cloud SQL: {'cloudsql' in database_url.lower() or '/cloudsql/' in database_url}")
     
     # Probar la conexión antes de crear tablas
     try:
@@ -56,7 +106,7 @@ def create_tables():
             result = conn.execute(text("SELECT 1"))
             print(f"✅ Conexión a base de datos exitosa")
             # Verificar qué base de datos estamos usando
-            if "sqlite" not in settings.database_url.lower():
+            if "sqlite" not in database_url.lower():
                 try:
                     db_result = conn.execute(text("SELECT current_database()"))
                     db_name = db_result.scalar()
@@ -84,7 +134,7 @@ def create_tables():
         print(f"✅ create_all() ejecutado. Tablas a crear: {len(table_names)}")
         
         # Verificar que las tablas se crearon
-        if "sqlite" not in settings.database_url.lower():
+        if "sqlite" not in database_url.lower():
             try:
                 from sqlalchemy import text, inspect
                 inspector = inspect(engine)
@@ -99,4 +149,3 @@ def create_tables():
         import traceback
         traceback.print_exc()
         raise
-

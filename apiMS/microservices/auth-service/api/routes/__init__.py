@@ -339,10 +339,12 @@ async def verify_mfa_code(
     description="DEPRECATED: Usar /auth/mfa/verify en su lugar"
 )
 async def verify_code(
-    request: VerifyCodeRequest
+    request: VerifyCodeRequest,
+    verify_handler=Depends(get_verify_code_handler),
+    user_handler=Depends(get_user_by_id_handler)
 ):
     """Verificar código de verificación (deprecated)"""
-    return await verify_mfa_code(request)
+    return await verify_mfa_code(request, verify_handler, user_handler)
 
 
 @router.get(
