@@ -13,15 +13,28 @@ if [ "$PROJECT_ID" = "tu-proyecto-id" ]; then
   exit 1
 fi
 
+# Obtener el número del proyecto para el Compute Engine default SA
+PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)" 2>/dev/null)
+
+if [ -z "$PROJECT_NUMBER" ]; then
+  echo "❌ ERROR: No se pudo obtener el número del proyecto"
+  echo "   Verifica que tengas permisos y que el proyecto exista"
+  exit 1
+fi
+
+# Compute Engine default SA usa el formato: PROJECT_NUMBER-compute@developer.gserviceaccount.com
+COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+
 echo "🔐 Asignando roles al Compute Engine default SA..."
 echo "   Project ID: $PROJECT_ID"
-echo "   Service Account: ${PROJECT_ID}@appspot.gserviceaccount.com"
+echo "   Project Number: $PROJECT_NUMBER"
+echo "   Service Account: $COMPUTE_SA"
 echo ""
 
 # 1. Secret Manager (OBLIGATORIO para todos los casos)
 echo "📦 Asignando roles/secretmanager.secretAccessor..."
 gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-  --member="serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com" \
+  --member="serviceAccount:${COMPUTE_SA}" \
   --role="roles/secretmanager.secretAccessor" \
   --condition=None || {
     echo "⚠️  Error al asignar roles/secretmanager.secretAccessor"
@@ -37,7 +50,7 @@ echo ""
 if [ "${ENABLE_CLOUD_SQL:-false}" = "true" ]; then
   echo "🗄️  Asignando roles/cloudsql.client (Cloud SQL habilitado)..."
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-    --member="serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com" \
+    --member="serviceAccount:${COMPUTE_SA}" \
     --role="roles/cloudsql.client" \
     --condition=None || {
       echo "⚠️  Error al asignar roles/cloudsql.client"
@@ -53,7 +66,7 @@ echo ""
 echo "✅ Todos los roles asignados correctamente"
 echo ""
 echo "📋 Resumen:"
-echo "   Service Account: ${PROJECT_ID}@appspot.gserviceaccount.com"
+echo "   Service Account: $COMPUTE_SA"
 echo "   Roles asignados:"
 echo "     - roles/secretmanager.secretAccessor ✅"
 if [ "${ENABLE_CLOUD_SQL:-false}" = "true" ]; then

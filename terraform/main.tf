@@ -14,6 +14,11 @@ provider "google" {
   region  = var.region
 }
 
+# Data source para obtener información del proyecto
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
 # Habilitar APIs necesarias
 locals {
   required_apis = concat(
@@ -158,8 +163,13 @@ locals {
   service_account_email = var.create_service_account ? google_service_account.cloud_run[0].email : (
     var.service_account_email != "" ? var.service_account_email : (
       # Fallback: usar Compute Engine default service account
-      # Este SA existe por defecto en todos los proyectos GCP
-      "${var.project_id}@appspot.gserviceaccount.com"
+      # Formato: PROJECT_NUMBER-compute@developer.gserviceaccount.com
+      # Obtener el número del proyecto desde el data source
+      data.google_project.project.number != null ? "${data.google_project.project.number}-compute@developer.gserviceaccount.com" : (
+        # Si no podemos obtener el número, intentar crear el SA (requiere permisos)
+        # Esto fallará si no hay permisos, pero es mejor que usar un SA inexistente
+        "${var.project_name}-cloud-run-sa@${var.project_id}.iam.gserviceaccount.com"
+      )
     )
   )
 }
