@@ -200,6 +200,10 @@ jobs:
         TF_VAR_use_existing_artifact_registry: ${{ secrets.USE_EXISTING_ARTIFACT_REGISTRY || 'true' }}
       run: |
         echo "📋 Generando plan de Terraform..."
+        echo "🔍 Valores de configuración:"
+        echo "   ENABLE_CLOUD_SQL: ${{ secrets.ENABLE_CLOUD_SQL || 'false' }}"
+        echo "   CREATE_SERVICE_ACCOUNT: ${{ secrets.CREATE_SERVICE_ACCOUNT || 'false' }}"
+        echo "   USE_EXISTING_ARTIFACT_REGISTRY: ${{ secrets.USE_EXISTING_ARTIFACT_REGISTRY || 'true' }}"
         terraform plan -out=tfplan
 
     - name: 🚀 Terraform Apply

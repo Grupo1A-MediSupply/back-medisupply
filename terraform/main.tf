@@ -157,9 +157,9 @@ resource "google_secret_manager_secret_iam_member" "database_url_accessor" {
   member    = "serviceAccount:${local.service_account_email}"
 }
 
-# IAM Binding para acceder a Cloud SQL (si está habilitado)
+# IAM Binding para acceder a Cloud SQL (si está habilitado y el Service Account existe)
 resource "google_project_iam_member" "cloud_sql_client" {
-  count   = var.enable_cloud_sql ? 1 : 0
+  count   = var.enable_cloud_sql && (var.create_service_account || var.service_account_email != "") ? 1 : 0
   project = var.project_id
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${local.service_account_email}"
