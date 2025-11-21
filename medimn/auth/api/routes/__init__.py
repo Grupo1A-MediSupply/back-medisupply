@@ -233,7 +233,7 @@ async def login(
     request: LoginRequest,
     handler=Depends(get_login_handler)
 ):
-    """Iniciar sesión y obtener tokens"""
+    """Iniciar sesión y obtener tokens (sin MFA)"""
     try:
         command = LoginCommand(
             username=request.username,
@@ -242,28 +242,24 @@ async def login(
         
         result = await handler.handle(command)
         
-        # Devolver respuesta según especificación (con mfaRequired)
+        # Obtener usuario de la respuesta
         user = result.get("user")
-        if user:
-            return {
-                "message": "Login exitoso",
-                "token": result.get("access_token", ""),
-                "user": {
-                    "id": str(user.id),
-                    "email": str(user.email),
-                    "role": str(user.role) if user.role else None,
-                    "name": str(user.full_name) if user.full_name else None
-                },
-                "mfaRequired": False
-            }
-        else:
-            # Si requiere verificación MFA
-            return {
-                "message": "Código MFA enviado",
-                "mfaRequired": True,
-                "userId": result.get("user_id", ""),
-                "mfaCode": result.get("mfa_code")  # Solo en desarrollo
-            }
+        
+        # Devolver respuesta con tokens directamente
+        return {
+            "message": "Login exitoso",
+            "token": result.get("access_token", ""),
+            "access_token": result.get("access_token", ""),
+            "refresh_token": result.get("refresh_token", ""),
+            "token_type": result.get("token_type", "bearer"),
+            "user": {
+                "id": str(user.id),
+                "email": str(user.email),
+                "role": str(user.role) if user.role else None,
+                "name": str(user.full_name) if user.full_name else None
+            },
+            "mfaRequired": False
+        }
         
     except ValueError as e:
         raise HTTPException(

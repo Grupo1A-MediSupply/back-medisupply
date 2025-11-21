@@ -110,11 +110,11 @@ class LoginCommandHandler:
         self,
         user_repository: IUserRepository,
         password_hasher: IPasswordHasher,
-        verification_code_repository
+        token_service: ITokenService
     ):
         self.user_repository = user_repository
         self.password_hasher = password_hasher
-        self.verification_code_repository = verification_code_repository
+        self.token_service = token_service
     
     async def handle(self, command: LoginCommand) -> dict:
         """Manejar comando de login"""
@@ -154,36 +154,25 @@ class LoginCommandHandler:
             
             user.clear_domain_events()
             
-            # Generar código de verificación (sin enviar email)
-            import random
-            import string
-            code_length = 6  # Longitud del código
-            verification_code = ''.join(random.choices(string.digits, k=code_length))
-            
-            # Guardar código en la base de datos
-            verification_code_model = await self.verification_code_repository.create_verification_code(
+            # Generar tokens directamente (sin MFA)
+            access_token = self.token_service.create_access_token(
                 user_id=str(user.id),
-                email=str(user.email),
-                code=verification_code
+                username=str(user.username),
+                scopes=["read", "write"]
             )
             
-            # Hacer commit de la transacción
-            self.verification_code_repository.db.commit()
-            
-            # Mostrar código en consola para desarrollo/testing
-            print(f"\n🔐 CÓDIGO DE VERIFICACIÓN PARA {user.username} ({user.email})")
-            print(f"📧 Código: {verification_code}")
-            print(f"⏰ Obtén el código mediante GET /api/v1/auth/verification-code/{user.id}")
-            print("=" * 50)
+            refresh_token = self.token_service.create_refresh_token(
+                user_id=str(user.id),
+                username=str(user.username)
+            )
             
             return {
-                "message": "Código de verificación generado. Usa GET /api/v1/auth/verification-code/{user_id} para obtenerlo",
-                "user_id": str(user.id),
-                "email": str(user.email),
-                "requires_verification": True,
-                # Exponer el código MFA en la respuesta del login (útil para desarrollo / pruebas)
-                "mfa_code": verification_code,
-                "note": "Puedes obtener el código mediante GET /api/v1/auth/verification-code/{user_id}"
+                "message": "Login exitoso",
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "bearer",
+                "user": user,
+                "requires_verification": False
             }
         except Exception as e:
             print(f"Error en LoginCommandHandler: {e}")

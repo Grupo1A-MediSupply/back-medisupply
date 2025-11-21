@@ -73,10 +73,10 @@ def get_register_user_handler(
 def get_login_handler(
     user_repository: SQLAlchemyUserRepository = Depends(get_user_repository),
     password_hasher: BcryptPasswordHasher = Depends(get_password_hasher),
-    verification_code_repository: VerificationCodeRepository = Depends(get_verification_code_repository)
+    token_service: JWTTokenService = Depends(get_token_service)
 ) -> LoginCommandHandler:
     """Obtener handler de login"""
-    return LoginCommandHandler(user_repository, password_hasher, verification_code_repository)
+    return LoginCommandHandler(user_repository, password_hasher, token_service)
 
 
 def get_refresh_token_handler(

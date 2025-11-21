@@ -120,12 +120,12 @@ class TestLoginCommandHandler:
     """Tests para LoginCommandHandler"""
     
     @pytest.mark.asyncio
-    async def test_login_success(self, mock_user_repository, mock_password_hasher, mock_verification_code_repository, sample_user_entity):
-        """Test login exitoso"""
+    async def test_login_success(self, mock_user_repository, mock_password_hasher, mock_token_service, sample_user_entity):
+        """Test login exitoso (sin MFA)"""
         handler = LoginCommandHandler(
             mock_user_repository,
             mock_password_hasher,
-            mock_verification_code_repository
+            mock_token_service
         )
         
         mock_user_repository.find_by_username = AsyncMock(return_value=sample_user_entity)
@@ -137,19 +137,23 @@ class TestLoginCommandHandler:
         
         assert result is not None
         assert "message" in result
-        assert "user_id" in result
-        assert "mfa_code" in result
+        assert "access_token" in result
+        assert "refresh_token" in result
+        assert "token_type" in result
+        assert "user" in result
+        assert result["requires_verification"] is False
         mock_user_repository.find_by_username.assert_called_once()
         mock_password_hasher.verify_password.assert_called_once()
-        mock_verification_code_repository.create_verification_code.assert_called_once()
+        mock_token_service.create_access_token.assert_called_once()
+        mock_token_service.create_refresh_token.assert_called_once()
     
     @pytest.mark.asyncio
-    async def test_login_user_not_found(self, mock_user_repository, mock_password_hasher, mock_verification_code_repository):
+    async def test_login_user_not_found(self, mock_user_repository, mock_password_hasher, mock_token_service):
         """Test login con usuario no encontrado"""
         handler = LoginCommandHandler(
             mock_user_repository,
             mock_password_hasher,
-            mock_verification_code_repository
+            mock_token_service
         )
         
         mock_user_repository.find_by_username = AsyncMock(return_value=None)
@@ -161,12 +165,12 @@ class TestLoginCommandHandler:
             await handler.handle(command)
     
     @pytest.mark.asyncio
-    async def test_login_wrong_password(self, mock_user_repository, mock_password_hasher, mock_verification_code_repository, sample_user_entity):
+    async def test_login_wrong_password(self, mock_user_repository, mock_password_hasher, mock_token_service, sample_user_entity):
         """Test login con contraseña incorrecta"""
         handler = LoginCommandHandler(
             mock_user_repository,
             mock_password_hasher,
-            mock_verification_code_repository
+            mock_token_service
         )
         
         mock_user_repository.find_by_username = AsyncMock(return_value=sample_user_entity)
