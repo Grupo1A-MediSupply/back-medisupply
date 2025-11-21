@@ -131,23 +131,19 @@ resource "google_secret_manager_secret" "secret_key" {
 }
 
 # Versión del secret SECRET_KEY (crear si se proporciona el valor)
-# Esto funciona tanto para secrets existentes como para nuevos
-# El campo 'secret' puede usar el nombre simple o el ID completo
-# NOTA: Si la versión ya existe (creada por el pipeline), Terraform la ignorará
+# NOTA: Si use_existing_secrets = true, asumimos que la versión ya existe (creada por el pipeline)
+# Solo crear la versión si use_existing_secrets = false (Terraform gestiona todo)
 resource "google_secret_manager_secret_version" "secret_key" {
-  count       = var.secret_key != "" ? 1 : 0
+  # Solo crear la versión si:
+  # 1. Se proporciona el valor del secret
+  # 2. Y NO estamos usando secrets existentes (si usamos existentes, el pipeline ya creó la versión)
+  count       = var.secret_key != "" && !var.use_existing_secrets ? 1 : 0
   # Usar el nombre simple del secret (funciona tanto para existentes como nuevos)
   secret      = "${var.project_name}-secret-key"
   secret_data = var.secret_key
 
-  lifecycle {
-    # Si la versión ya existe (creada por el pipeline), no fallar
-    create_before_destroy = true
-  }
-
   depends_on = [
     google_secret_manager_secret.secret_key,
-    data.google_secret_manager_secret.secret_key_existing,
     google_secret_manager_secret_iam_member.secret_key_accessor,
     google_project_service.required_apis
   ]
@@ -314,8 +310,7 @@ resource "google_cloud_run_v2_service" "monolith" {
   }
 
   depends_on = [
-    google_project_service.required_apis,
-    google_secret_manager_secret_version.secret_key
+    google_project_service.required_apis
   ]
 }
 
