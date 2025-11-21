@@ -133,11 +133,17 @@ resource "google_secret_manager_secret" "secret_key" {
 # Versión del secret SECRET_KEY (crear si se proporciona el valor)
 # Esto funciona tanto para secrets existentes como para nuevos
 # El campo 'secret' puede usar el nombre simple o el ID completo
+# NOTA: Si la versión ya existe (creada por el pipeline), Terraform la ignorará
 resource "google_secret_manager_secret_version" "secret_key" {
   count       = var.secret_key != "" ? 1 : 0
   # Usar el nombre simple del secret (funciona tanto para existentes como nuevos)
   secret      = "${var.project_name}-secret-key"
   secret_data = var.secret_key
+
+  lifecycle {
+    # Si la versión ya existe (creada por el pipeline), no fallar
+    create_before_destroy = true
+  }
 
   depends_on = [
     google_secret_manager_secret.secret_key,
