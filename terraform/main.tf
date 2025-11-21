@@ -59,7 +59,6 @@ resource "google_sql_database_instance" "main" {
       start_time                     = "03:00"
       point_in_time_recovery_enabled = true
       transaction_log_retention_days  = 7
-      retained_backups               = 7
     }
 
     ip_configuration {
@@ -99,7 +98,7 @@ resource "google_secret_manager_secret" "secret_key" {
   secret_id = "${var.project_name}-secret-key"
 
   replication {
-    automatic = true
+    auto {}
   }
 
   depends_on = [google_project_service.required_apis]
@@ -111,7 +110,7 @@ resource "google_secret_manager_secret" "database_url" {
   secret_id = "${var.project_name}-database-url"
 
   replication {
-    automatic = true
+    auto {}
   }
 
   depends_on = [google_project_service.required_apis]
