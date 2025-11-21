@@ -90,6 +90,13 @@ variable "use_existing_secrets" {
   default     = true
 }
 
+variable "secret_key" {
+  description = "Secret key value for JWT (will be stored in Secret Manager)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 # Variables para Cloud SQL (opcional)
 variable "enable_cloud_sql" {
   description = "Enable Cloud SQL instance"

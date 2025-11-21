@@ -130,6 +130,20 @@ resource "google_secret_manager_secret" "secret_key" {
   depends_on = [google_project_service.required_apis]
 }
 
+# Versión del secret SECRET_KEY (crear si se proporciona el valor)
+# Esto funciona tanto para secrets existentes como para nuevos
+resource "google_secret_manager_secret_version" "secret_key" {
+  count       = var.secret_key != "" ? 1 : 0
+  secret      = local.secret_key_id
+  secret_data = var.secret_key
+
+  depends_on = [
+    google_secret_manager_secret.secret_key,
+    data.google_secret_manager_secret.secret_key_existing,
+    google_secret_manager_secret_iam_member.secret_key_accessor
+  ]
+}
+
 # Secret Manager para DATABASE_URL (si se usa Cloud SQL)
 resource "google_secret_manager_secret" "database_url" {
   count     = var.enable_cloud_sql && !var.use_existing_secrets ? 1 : 0
