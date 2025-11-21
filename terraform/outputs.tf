@@ -42,10 +42,10 @@ output "cloud_sql_connection_name" {
 
 output "secret_key_secret_id" {
   description = "Secret Manager secret ID for SECRET_KEY"
-  value       = google_secret_manager_secret.secret_key.secret_id
+  value       = local.secret_key_id
 }
 
 output "database_url_secret_id" {
   description = "Secret Manager secret ID for DATABASE_URL (if Cloud SQL enabled)"
-  value       = var.enable_cloud_sql ? google_secret_manager_secret.database_url[0].secret_id : null
+  value       = local.database_url_secret_id
 }
