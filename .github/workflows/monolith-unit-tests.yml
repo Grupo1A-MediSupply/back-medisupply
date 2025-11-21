@@ -1,0 +1,149 @@
+name: 🧪 Tests Unitarios - Monolito MediSupply
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - release
+      - feature/*
+    paths:
+      - 'medimn/**'
+      - '.github/workflows/monolith-unit-tests.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+      - release
+    paths:
+      - 'medimn/**'
+      - '.github/workflows/monolith-unit-tests.yml'
+  workflow_dispatch:  # Permite ejecución manual
+
+env:
+  PYTHON_VERSION: '3.12'
+  COVERAGE_THRESHOLD: 70
+
+jobs:
+  unit-tests:
+    name: Tests Unitarios - Monolito
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Configurar Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+        cache-dependency-path: 'medimn/requirements.txt'
+    
+    - name: 📦 Instalar dependencias
+      working-directory: medimn
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: 🧪 Ejecutar tests unitarios
+      working-directory: medimn
+      env:
+        PYTHONPATH: ${{ github.workspace }}/medimn
+      run: |
+        echo "════════════════════════════════════════════════"
+        echo "🧪 Ejecutando tests unitarios del monolito"
+        echo "════════════════════════════════════════════════"
+        echo "Python version: ${{ matrix.python-version }}"
+        echo "Working directory: $(pwd)"
+        echo ""
+        
+        pytest tests/unit/ \
+          -v \
+          --tb=short \
+          --cov=. \
+          --cov-report=term-missing \
+          --cov-report=html \
+          --cov-report=xml \
+          --cov-fail-under=${{ env.COVERAGE_THRESHOLD }} \
+          --junit-xml=junit-test-results.xml
+    
+    - name: 📊 Mostrar resumen de cobertura
+      working-directory: medimn
+      if: always()
+      run: |
+        echo ""
+        echo "════════════════════════════════════════════════"
+        echo "📊 RESUMEN DE COBERTURA"
+        echo "════════════════════════════════════════════════"
+        coverage report --show-missing || echo "⚠️  No se pudo generar el resumen"
+        echo ""
+        echo "════════════════════════════════════════════════"
+    
+    - name: 📤 Subir reporte de cobertura a Codecov
+      uses: codecov/codecov-action@v4
+      if: matrix.python-version == '3.12'
+      with:
+        file: ./medimn/coverage.xml
+        flags: monolith-unit-tests
+        name: monolith-coverage
+        fail_ci_if_error: false
+      continue-on-error: true
+    
+    - name: 💾 Guardar reporte HTML de cobertura
+      uses: actions/upload-artifact@v4
+      if: matrix.python-version == '3.12'
+      with:
+        name: monolith-coverage-report-${{ matrix.python-version }}
+        path: medimn/htmlcov/
+        retention-days: 30
+    
+    - name: 💾 Guardar reporte XML de tests
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: monolith-test-results-${{ matrix.python-version }}
+        path: medimn/junit-test-results.xml
+        retention-days: 7
+    
+    - name: 📊 Publicar resultados de tests
+      uses: EnricoMi/publish-unit-test-result-action@v2
+      if: always()
+      with:
+        files: medimn/junit-test-results.xml
+        check_name: "Tests Unitarios - Python ${{ matrix.python-version }}"
+        comment_mode: create new
+        report_individual_runs: true
+    
+    - name: ✅ Resumen final
+      if: always()
+      run: |
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║                                                              ║"
+        echo "║      ✅ TESTS UNITARIOS - MONOLITO MEDISUPPLY               ║"
+        echo "║                                                              ║"
+        echo "╚══════════════════════════════════════════════════════════════╝"
+        echo ""
+        echo "📊 Configuración:"
+        echo "   - Python version: ${{ matrix.python-version }}"
+        echo "   - Cobertura mínima requerida: ${{ env.COVERAGE_THRESHOLD }}%"
+        echo "   - Directorio: medimn/"
+        echo ""
+        echo "📁 Tests incluidos:"
+        echo "   ✅ Auth Service (handlers, adapters, repositories, services)"
+        echo "   ✅ Product Service (handlers, entities)"
+        echo "   ✅ Order Service (handlers)"
+        echo "   ✅ Infrastructure (config, database)"
+        echo "   ✅ Domain (entities, value objects)"
+        echo "   ✅ Shared (entity, value objects)"
+        echo ""
+        echo "════════════════════════════════════════════════════════════════"
+        echo "🎯 Objetivo: Cobertura >= ${{ env.COVERAGE_THRESHOLD }}%"
+        echo "════════════════════════════════════════════════════════════════"
+        echo ""
+        echo "🎉 Pipeline completado!"
+

@@ -2,9 +2,9 @@ name: 🚀 Deploy to AWS ECS v3
 
 on:
   push:
-    branches: [ main ]
+    branches: [ mains ]
   pull_request:
-    branches: [ main ]
+    branches: [ mains ]
   workflow_dispatch:
 
 env:

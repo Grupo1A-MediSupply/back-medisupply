@@ -3,9 +3,9 @@ name: 🧪 Tests Unitarios Backend MediSupply
 
 on:
   push:
-    branches: [ '**' ]  # Todas las ramas
+    branches: [ mains ]  # Todas las ramas
   pull_request:
-    branches: [ '**' ]
+    branches: [ mains ]
   workflow_dispatch:  # Permite ejecución manual
 
 jobs:
