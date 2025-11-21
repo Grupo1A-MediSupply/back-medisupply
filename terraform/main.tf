@@ -40,11 +40,11 @@ resource "google_project_service" "required_apis" {
 # Si use_existing_artifact_registry = true, no intenta crear el repositorio
 # (asume que ya existe y fue creado por el pipeline o manualmente)
 resource "google_artifact_registry_repository" "monolith" {
-  count        = var.use_existing_artifact_registry ? 0 : 1
-  location     = var.region
+  count         = var.use_existing_artifact_registry ? 0 : 1
+  location      = var.region
   repository_id = var.artifact_registry_name
-  description  = "Docker repository for MediSupply Monolith"
-  format       = "DOCKER"
+  description   = "Docker repository for MediSupply Monolith"
+  format        = "DOCKER"
 
   depends_on = [google_project_service.required_apis]
 }
@@ -67,7 +67,7 @@ resource "google_sql_database_instance" "main" {
       enabled                        = true
       start_time                     = "03:00"
       point_in_time_recovery_enabled = true
-      transaction_log_retention_days  = 7
+      transaction_log_retention_days = 7
     }
 
     ip_configuration {
@@ -151,7 +151,7 @@ locals {
   database_url_secret_id = var.enable_cloud_sql ? (
     var.use_existing_secrets ? data.google_secret_manager_secret.database_url_existing[0].secret_id : google_secret_manager_secret.database_url[0].secret_id
   ) : null
-  
+
   # Service Account email: usar existente o creado
   service_account_email = var.create_service_account ? google_service_account.cloud_run[0].email : (
     var.service_account_email != "" ? var.service_account_email : (
