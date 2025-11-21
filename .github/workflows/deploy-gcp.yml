@@ -151,11 +151,11 @@ jobs:
         docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/reports-service:latest
     
     - name: 📦 Build and Push API Gateway
-      working-directory: apiMS/microservices/api-gateway
+      working-directory: apiMS/microservices
       run: |
         docker build \
           --platform linux/amd64 \
-          -f Dockerfile \
+          -f api-gateway/Dockerfile \
           -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/api-gateway:${{ github.sha }} \
           -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/api-gateway:latest \
           .
