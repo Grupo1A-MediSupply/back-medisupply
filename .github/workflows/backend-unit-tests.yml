@@ -1,4 +1,4 @@
-name: 🧪 Tests Unitarios - Backend api MediSupply
+name: 🧪 Tests Unitarios - Backend API MediSupply
 
 on:
   push:
@@ -93,8 +93,8 @@ jobs:
       if: matrix.python-version == '3.12'
       with:
         file: ./medimn/coverage.xml
-        flags: monolith-unit-tests
-        name: monolith-coverage
+        flags: backend-unit-tests
+        name: backend-coverage
         fail_ci_if_error: false
       continue-on-error: true
     
@@ -102,7 +102,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: matrix.python-version == '3.12'
       with:
-        name: monolith-coverage-report-${{ matrix.python-version }}
+        name: backend-coverage-report-${{ matrix.python-version }}
         path: medimn/htmlcov/
         retention-days: 30
     
@@ -110,7 +110,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: monolith-test-results-${{ matrix.python-version }}
+        name: backend-test-results-${{ matrix.python-version }}
         path: medimn/junit-test-results.xml
         retention-days: 7
     
