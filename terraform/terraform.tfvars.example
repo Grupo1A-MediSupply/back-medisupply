@@ -30,6 +30,14 @@ db_name               = "medisupply"
 db_user               = "medisupply"
 db_password           = "your-secure-password-here"
 
+# Configuración Service Account
+# Opción 1: Crear nuevo Service Account (requiere permisos iam.serviceAccounts.create)
+create_service_account = true
+
+# Opción 2: Usar Service Account existente (si no tienes permisos para crear)
+# create_service_account = false
+# service_account_email = "mi-service-account@proyecto.iam.gserviceaccount.com"
+
 # Labels personalizados
 labels = {
   project     = "medisupply"

@@ -128,6 +128,19 @@ variable "db_password" {
   default     = ""
 }
 
+# Variables para Service Account
+variable "create_service_account" {
+  description = "Create a new service account (if false, use existing service_account_email)"
+  type        = bool
+  default     = true
+}
+
+variable "service_account_email" {
+  description = "Email of existing service account to use (if create_service_account is false)"
+  type        = string
+  default     = ""
+}
+
 # Variables para tags/labels
 variable "labels" {
   description = "Labels to apply to resources"

@@ -27,7 +27,7 @@ output "artifact_registry_repository_id" {
 
 output "service_account_email" {
   description = "Email of the Cloud Run service account"
-  value       = google_service_account.cloud_run.email
+  value       = var.service_account_email != "" ? var.service_account_email : (var.create_service_account ? google_service_account.cloud_run[0].email : "N/A - Service Account debe ser configurado manualmente")
 }
 
 output "cloud_sql_instance_name" {

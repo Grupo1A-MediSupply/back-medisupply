@@ -195,6 +195,8 @@ jobs:
         TF_VAR_secret_key: ${{ secrets.SECRET_KEY }}
         TF_VAR_enable_cloud_sql: ${{ secrets.ENABLE_CLOUD_SQL || 'false' }}
         TF_VAR_db_password: ${{ secrets.DB_PASSWORD || '' }}
+        TF_VAR_create_service_account: ${{ secrets.CREATE_SERVICE_ACCOUNT || 'false' }}
+        TF_VAR_service_account_email: ${{ secrets.SERVICE_ACCOUNT_EMAIL || '' }}
       run: |
         echo "📋 Generando plan de Terraform..."
         terraform plan -out=tfplan
@@ -210,6 +212,8 @@ jobs:
         TF_VAR_secret_key: ${{ secrets.SECRET_KEY }}
         TF_VAR_enable_cloud_sql: ${{ secrets.ENABLE_CLOUD_SQL || 'false' }}
         TF_VAR_db_password: ${{ secrets.DB_PASSWORD || '' }}
+        TF_VAR_create_service_account: ${{ secrets.CREATE_SERVICE_ACCOUNT || 'false' }}
+        TF_VAR_service_account_email: ${{ secrets.SERVICE_ACCOUNT_EMAIL || '' }}
       run: |
         echo "🚀 Aplicando cambios de Terraform..."
         terraform apply -auto-approve tfplan

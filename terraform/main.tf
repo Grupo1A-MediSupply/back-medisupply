@@ -15,14 +15,20 @@ provider "google" {
 }
 
 # Habilitar APIs necesarias
+locals {
+  required_apis = concat(
+    [
+      "run.googleapis.com",
+      "artifactregistry.googleapis.com",
+      "secretmanager.googleapis.com"
+    ],
+    var.enable_cloud_sql ? ["cloudsql.googleapis.com"] : [],
+    var.create_service_account ? ["iam.googleapis.com"] : []
+  )
+}
+
 resource "google_project_service" "required_apis" {
-  for_each = toset([
-    "run.googleapis.com",
-    "artifactregistry.googleapis.com",
-    "cloudsql.googleapis.com",
-    "secretmanager.googleapis.com",
-    "iam.googleapis.com"
-  ])
+  for_each = toset(local.required_apis)
 
   service = each.value
   project = var.project_id
@@ -116,24 +122,32 @@ resource "google_secret_manager_secret" "database_url" {
   depends_on = [google_project_service.required_apis]
 }
 
-# Service Account para Cloud Run
+# Service Account para Cloud Run (opcional, puede usar uno existente)
 resource "google_service_account" "cloud_run" {
+  count        = var.create_service_account ? 1 : 0
   account_id   = "${var.project_name}-cloud-run-sa"
   display_name = "Cloud Run Service Account for MediSupply Monolith"
+}
+
+# Usar Service Account existente o el creado
+locals {
+  service_account_email = var.create_service_account ? google_service_account.cloud_run[0].email : (
+    var.service_account_email != "" ? var.service_account_email : "${var.project_name}-cloud-run-sa@${var.project_id}.iam.gserviceaccount.com"
+  )
 }
 
 # IAM Binding para acceder a Secret Manager
 resource "google_secret_manager_secret_iam_member" "secret_key_accessor" {
   secret_id = google_secret_manager_secret.secret_key.secret_id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.cloud_run.email}"
+  member    = "serviceAccount:${local.service_account_email}"
 }
 
 resource "google_secret_manager_secret_iam_member" "database_url_accessor" {
   count     = var.enable_cloud_sql ? 1 : 0
   secret_id = google_secret_manager_secret.database_url[0].secret_id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.cloud_run.email}"
+  member    = "serviceAccount:${local.service_account_email}"
 }
 
 # IAM Binding para acceder a Cloud SQL (si está habilitado)
@@ -141,7 +155,7 @@ resource "google_project_iam_member" "cloud_sql_client" {
   count   = var.enable_cloud_sql ? 1 : 0
   project = var.project_id
   role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.cloud_run.email}"
+  member  = "serviceAccount:${local.service_account_email}"
 }
 
 # Cloud Run Service
@@ -150,7 +164,7 @@ resource "google_cloud_run_v2_service" "monolith" {
   location = var.region
 
   template {
-    service_account = google_service_account.cloud_run.email
+    service_account = local.service_account_email
 
     scaling {
       min_instance_count = var.min_instances
