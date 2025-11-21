@@ -125,6 +125,42 @@ jobs:
           .
         docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/notifications-service:${{ github.sha }}
         docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/notifications-service:latest
+    
+    - name: 📦 Build and Push Inventory Service
+      working-directory: apiMS/microservices
+      run: |
+        docker build \
+          --platform linux/amd64 \
+          -f inventory-service/Dockerfile \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/inventory-service:${{ github.sha }} \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/inventory-service:latest \
+          .
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/inventory-service:${{ github.sha }}
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/inventory-service:latest
+    
+    - name: 📦 Build and Push Reports Service
+      working-directory: apiMS/microservices
+      run: |
+        docker build \
+          --platform linux/amd64 \
+          -f reports-service/Dockerfile \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/reports-service:${{ github.sha }} \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/reports-service:latest \
+          .
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/reports-service:${{ github.sha }}
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/reports-service:latest
+    
+    - name: 📦 Build and Push API Gateway
+      working-directory: apiMS/microservices
+      run: |
+        docker build \
+          --platform linux/amd64 \
+          -f api-gateway/Dockerfile \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/api-gateway:${{ github.sha }} \
+          -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/api-gateway:latest \
+          ./api-gateway
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/api-gateway:${{ github.sha }}
+        docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/api-gateway:latest
 
   # ============================================================================
   # Deploy with Terraform
@@ -168,7 +204,7 @@ jobs:
         echo "🔍 Verificando recursos Cloud Run existentes..."
         
         # Servicios a verificar
-        SERVICES=("auth-service" "product-service" "order-service" "logistics-service" "notifications-service")
+        SERVICES=("auth-service" "product-service" "order-service" "logistics-service" "notifications-service" "inventory-service" "reports-service" "api-gateway")
         FOUND_SERVICES=()
         
         for service in "${SERVICES[@]}"; do
@@ -257,7 +293,7 @@ jobs:
             
             # Importar bases de datos si existen
             echo "📊 Verificando bases de datos..."
-            DATABASES=("auth_service" "product_service" "order_service" "logistics_service" "notifications_service")
+            DATABASES=("auth_service" "product_service" "order_service" "logistics_service" "notifications_service" "inventory_service" "reports_service")
             for DB_NAME in "${DATABASES[@]}"; do
               if gcloud sql databases describe "$DB_NAME" --instance="$INSTANCE_NAME" --project="$PROJECT_ID" &>/dev/null; then
                 echo "   📊 Importando base de datos: $DB_NAME"
@@ -277,6 +313,12 @@ jobs:
                   "notifications_service")
                     terraform import "google_sql_database.notifications_db[0]" "${PROJECT_ID}/${INSTANCE_NAME}/${DB_NAME}" 2>/dev/null || echo "      ✅ Ya importado"
                     ;;
+                  "inventory_service")
+                    terraform import "google_sql_database.inventory_db[0]" "${PROJECT_ID}/${INSTANCE_NAME}/${DB_NAME}" 2>/dev/null || echo "      ✅ Ya importado"
+                    ;;
+                  "reports_service")
+                    terraform import "google_sql_database.reports_db[0]" "${PROJECT_ID}/${INSTANCE_NAME}/${DB_NAME}" 2>/dev/null || echo "      ✅ Ya importado"
+                    ;;
                 esac
               else
                 echo "   ℹ️  Base de datos ($DB_NAME) no existe, se creará automáticamente"
@@ -295,6 +337,8 @@ jobs:
             ["order-service-db-password"]="google_secret_manager_secret.order_db_password[0]"
             ["logistics-service-db-password"]="google_secret_manager_secret.logistics_db_password[0]"
             ["notifications-service-db-password"]="google_secret_manager_secret.notifications_db_password[0]"
+            ["inventory-service-db-password"]="google_secret_manager_secret.inventory_db_password[0]"
+            ["reports-service-db-password"]="google_secret_manager_secret.reports_db_password[0]"
           )
           
           for DB_SECRET in "${!DB_SECRETS[@]}"; do
@@ -356,11 +400,14 @@ jobs:
       run: |
         echo "🔗 URLs de Servicios:" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
+        echo "API Gateway: $(terraform output -raw api_gateway_url 2>/dev/null || echo 'N/A')" >> $GITHUB_STEP_SUMMARY
         echo "Auth Service: $(terraform output -raw auth_service_url)" >> $GITHUB_STEP_SUMMARY
         echo "Product Service: $(terraform output -raw product_service_url)" >> $GITHUB_STEP_SUMMARY
         echo "Order Service: $(terraform output -raw order_service_url)" >> $GITHUB_STEP_SUMMARY
         echo "Logistics Service: $(terraform output -raw logistics_service_url)" >> $GITHUB_STEP_SUMMARY
         echo "Notifications Service: $(terraform output -raw notifications_service_url)" >> $GITHUB_STEP_SUMMARY
+        echo "Inventory Service: $(terraform output -raw inventory_service_url 2>/dev/null || echo 'N/A')" >> $GITHUB_STEP_SUMMARY
+        echo "Reports Service: $(terraform output -raw reports_service_url 2>/dev/null || echo 'N/A')" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
   # Health Check
@@ -395,20 +442,26 @@ jobs:
     - name: 🏥 Health Check Services
       working-directory: apiMS/microservices/terraform
       run: |
+        API_GATEWAY_URL=$(terraform output -raw api_gateway_url 2>/dev/null || echo "")
         AUTH_URL=$(terraform output -raw auth_service_url)
         PRODUCT_URL=$(terraform output -raw product_service_url)
         ORDER_URL=$(terraform output -raw order_service_url)
         LOGISTICS_URL=$(terraform output -raw logistics_service_url)
         NOTIFICATIONS_URL=$(terraform output -raw notifications_service_url)
+        INVENTORY_URL=$(terraform output -raw inventory_service_url 2>/dev/null || echo "")
+        REPORTS_URL=$(terraform output -raw reports_service_url 2>/dev/null || echo "")
         
         echo "🔍 Verificando salud de servicios..."
         echo ""
         echo "📋 URLs de los servicios:"
+        [ -n "$API_GATEWAY_URL" ] && echo "   API Gateway: $API_GATEWAY_URL"
         echo "   Auth Service: $AUTH_URL"
         echo "   Product Service: $PRODUCT_URL"
         echo "   Order Service: $ORDER_URL"
         echo "   Logistics Service: $LOGISTICS_URL"
         echo "   Notifications Service: $NOTIFICATIONS_URL"
+        [ -n "$INVENTORY_URL" ] && echo "   Inventory Service: $INVENTORY_URL"
+        [ -n "$REPORTS_URL" ] && echo "   Reports Service: $REPORTS_URL"
         echo ""
         
         # Función para verificar servicio con retry mejorado
@@ -458,11 +511,14 @@ jobs:
         # Contador de servicios fallidos
         failed_services=0
         
+        [ -n "$API_GATEWAY_URL" ] && check_service "API Gateway" "$API_GATEWAY_URL" || failed_services=$((failed_services + 1))
         check_service "Auth Service" "$AUTH_URL" || failed_services=$((failed_services + 1))
         check_service "Product Service" "$PRODUCT_URL" || failed_services=$((failed_services + 1))
         check_service "Order Service" "$ORDER_URL" || failed_services=$((failed_services + 1))
         check_service "Logistics Service" "$LOGISTICS_URL" || failed_services=$((failed_services + 1))
         check_service "Notifications Service" "$NOTIFICATIONS_URL" || failed_services=$((failed_services + 1))
+        [ -n "$INVENTORY_URL" ] && check_service "Inventory Service" "$INVENTORY_URL" || failed_services=$((failed_services + 1))
+        [ -n "$REPORTS_URL" ] && check_service "Reports Service" "$REPORTS_URL" || failed_services=$((failed_services + 1))
         
         echo ""
         echo "📊 Resumen de Health Checks:"
