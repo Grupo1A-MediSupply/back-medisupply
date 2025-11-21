@@ -1,4 +1,0 @@
-"""
-Tests para Product Service
-"""
-
