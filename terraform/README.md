@@ -1,4 +1,4 @@
-# Terraform - Despliegue de MediSupply Monolith en GCP
+# Terraform - Despliegue de MediSupply backend en GCP
 
 Esta configuración de Terraform despliega el monolito MediSupply en Google Cloud Platform usando Cloud Run.
 
