@@ -185,6 +185,25 @@ jobs:
         echo "🔧 Inicializando Terraform..."
         terraform init
 
+    - name: 📋 Crear versión del secret si no existe
+      run: |
+        echo "🔍 Verificando si el secret tiene versiones..."
+        SECRET_NAME="medisupply-secret-key"
+        VERSION_COUNT=$(gcloud secrets versions list "$SECRET_NAME" \
+          --project=${{ secrets.GCP_PROJECT_ID }} \
+          --format="value(name)" 2>/dev/null | wc -l || echo "0")
+        
+        if [ "$VERSION_COUNT" = "0" ] && [ -n "${{ secrets.SECRET_KEY }}" ]; then
+          echo "📝 El secret no tiene versiones, creando una nueva..."
+          echo "${{ secrets.SECRET_KEY }}" | gcloud secrets versions add "$SECRET_NAME" \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --data-file=- \
+            --quiet
+          echo "✅ Versión del secret creada exitosamente"
+        else
+          echo "ℹ️  El secret ya tiene versiones o SECRET_KEY no está configurado"
+        fi
+
     - name: 📋 Importar o verificar servicio Cloud Run existente
       working-directory: terraform
       env:
