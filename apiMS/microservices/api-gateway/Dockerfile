@@ -7,14 +7,14 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements
-COPY requirements.txt .
+# Copiar requirements (desde el contexto apiMS/microservices)
+COPY api-gateway/requirements.txt .
 
 # Instalar dependencias de Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar código de la aplicación
-COPY main.py .
+# Copiar código de la aplicación (desde el contexto apiMS/microservices)
+COPY api-gateway/main.py .
 
 # Exponer puerto
 EXPOSE 8000
