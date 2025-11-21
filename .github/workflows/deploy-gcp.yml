@@ -385,12 +385,14 @@ jobs:
         TF_VAR_region: us-central1
         TF_VAR_enable_cloud_sql: ${{ secrets.ENABLE_CLOUD_SQL || vars.ENABLE_CLOUD_SQL || 'true' }}
       run: |
+        set -e  # Salir si cualquier comando falla (excepto donde se desactive explícitamente)
         echo "📋 Generando plan de Terraform..."
         echo "🔍 Evento que disparó el workflow: ${{ github.event_name }}"
         echo "🔍 Rama: ${{ github.ref }}"
         
         # Generar el plan
-        if terraform plan -out=tfplan; then
+        # Redirigir stderr a stdout para capturar todos los mensajes
+        if terraform plan -out=tfplan 2>&1 | tee /tmp/terraform-plan.log; then
           echo "✅ Plan generado exitosamente"
           
           # Verificar que el archivo del plan existe
@@ -406,15 +408,27 @@ jobs:
           # Mostrar resumen del plan
           echo ""
           echo "📊 Resumen del plan:"
-          terraform show -json tfplan | jq -r '
-            .resource_changes[] | 
-            select(.change.actions != null and (.change.actions | length > 0)) |
-            "  \(.change.actions[0]) \(.address)"
-          ' || echo "  No hay cambios planificados"
+          # Guardar el JSON en una variable temporal para evitar problemas de pipe
+          set +e
+          PLAN_JSON=$(terraform show -json tfplan 2>&1)
+          if [ $? -eq 0 ] && [ -n "$PLAN_JSON" ]; then
+            echo "$PLAN_JSON" | jq -r '
+              .resource_changes[] | 
+              select(.change.actions != null and (.change.actions | length > 0)) |
+              "  \(.change.actions[0]) \(.address)"
+            ' 2>/dev/null || echo "  No hay cambios planificados"
+          else
+            echo "  ⚠️  No se pudo obtener el resumen del plan"
+          fi
+          set -e
         else
           echo "❌ ERROR: Falló la generación del plan"
           echo "🔍 Mostrando últimos logs de terraform..."
-          terraform plan -out=tfplan 2>&1 | tail -50
+          if [ -f /tmp/terraform-plan.log ]; then
+            tail -50 /tmp/terraform-plan.log
+          else
+            echo "⚠️  No se encontraron logs guardados"
+          fi
           exit 1
         fi
     
@@ -427,6 +441,7 @@ jobs:
         TF_VAR_region: us-central1
         TF_VAR_enable_cloud_sql: ${{ secrets.ENABLE_CLOUD_SQL || vars.ENABLE_CLOUD_SQL || 'true' }}
       run: |
+        set -e  # Salir si cualquier comando falla
         echo "🚀 Iniciando Terraform Apply..."
         echo "🔍 Evento: ${{ github.event_name }}"
         echo "🔍 Rama: ${{ github.ref }}"
@@ -445,7 +460,9 @@ jobs:
         # Mostrar un resumen del plan antes de aplicar
         echo ""
         echo "📋 Resumen del plan a aplicar:"
-        terraform show -no-color tfplan | head -30 || echo "⚠️  No se pudo mostrar el resumen"
+        set +e
+        terraform show -no-color tfplan 2>&1 | head -30 || echo "⚠️  No se pudo mostrar el resumen"
+        set -e
         echo "..."
         
         # Aplicar el plan
