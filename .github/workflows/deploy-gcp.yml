@@ -359,6 +359,19 @@ jobs:
         
         echo "✅ Importación completada"
     
+    - name: 🔍 Debug Información del Workflow
+      run: |
+        echo "🔍 Información del workflow:"
+        echo "  Evento: ${{ github.event_name }}"
+        echo "  Rama: ${{ github.ref }}"
+        echo "  SHA: ${{ github.sha }}"
+        echo "  Actor: ${{ github.actor }}"
+        echo ""
+        echo "🔍 Condiciones para terraform apply:"
+        echo "  - github.event_name == 'push': ${{ github.event_name == 'push' }}"
+        echo "  - github.event_name == 'workflow_dispatch': ${{ github.event_name == 'workflow_dispatch' }}"
+        echo "  - Condición completa: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}"
+    
     - name: ✅ Terraform Validate
       working-directory: apiMS/microservices/terraform
       run: |
@@ -373,16 +386,37 @@ jobs:
         TF_VAR_enable_cloud_sql: ${{ secrets.ENABLE_CLOUD_SQL || vars.ENABLE_CLOUD_SQL || 'true' }}
       run: |
         echo "📋 Generando plan de Terraform..."
-        terraform plan -out=tfplan
+        echo "🔍 Evento que disparó el workflow: ${{ github.event_name }}"
+        echo "🔍 Rama: ${{ github.ref }}"
         
-        # Mostrar resumen del plan
-        echo ""
-        echo "📊 Resumen del plan:"
-        terraform show -json tfplan | jq -r '
-          .resource_changes[] | 
-          select(.change.actions != null and (.change.actions | length > 0)) |
-          "  \(.change.actions[0]) \(.address)"
-        ' || echo "  No hay cambios planificados"
+        # Generar el plan
+        if terraform plan -out=tfplan; then
+          echo "✅ Plan generado exitosamente"
+          
+          # Verificar que el archivo del plan existe
+          if [ -f "tfplan" ]; then
+            echo "✅ Archivo tfplan creado correctamente"
+            PLAN_SIZE=$(ls -lh tfplan | awk '{print $5}')
+            echo "📦 Tamaño del plan: $PLAN_SIZE"
+          else
+            echo "❌ ERROR: El archivo tfplan no se creó"
+            exit 1
+          fi
+          
+          # Mostrar resumen del plan
+          echo ""
+          echo "📊 Resumen del plan:"
+          terraform show -json tfplan | jq -r '
+            .resource_changes[] | 
+            select(.change.actions != null and (.change.actions | length > 0)) |
+            "  \(.change.actions[0]) \(.address)"
+          ' || echo "  No hay cambios planificados"
+        else
+          echo "❌ ERROR: Falló la generación del plan"
+          echo "🔍 Mostrando últimos logs de terraform..."
+          terraform plan -out=tfplan 2>&1 | tail -50
+          exit 1
+        fi
     
     - name: 🚀 Terraform Apply
       if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -393,7 +427,38 @@ jobs:
         TF_VAR_region: us-central1
         TF_VAR_enable_cloud_sql: ${{ secrets.ENABLE_CLOUD_SQL || vars.ENABLE_CLOUD_SQL || 'true' }}
       run: |
-        terraform apply -auto-approve tfplan
+        echo "🚀 Iniciando Terraform Apply..."
+        echo "🔍 Evento: ${{ github.event_name }}"
+        echo "🔍 Rama: ${{ github.ref }}"
+        
+        # Verificar que el plan existe
+        if [ ! -f "tfplan" ]; then
+          echo "❌ ERROR: El archivo tfplan no existe"
+          echo "💡 Esto puede ocurrir si el paso 'Terraform Plan' falló o no se ejecutó"
+          exit 1
+        fi
+        
+        echo "✅ Archivo tfplan encontrado"
+        PLAN_SIZE=$(ls -lh tfplan | awk '{print $5}')
+        echo "📦 Tamaño del plan: $PLAN_SIZE"
+        
+        # Mostrar un resumen del plan antes de aplicar
+        echo ""
+        echo "📋 Resumen del plan a aplicar:"
+        terraform show -no-color tfplan | head -30 || echo "⚠️  No se pudo mostrar el resumen"
+        echo "..."
+        
+        # Aplicar el plan
+        echo ""
+        echo "🚀 Aplicando cambios..."
+        if terraform apply -auto-approve tfplan; then
+          echo "✅ Terraform apply completado exitosamente"
+        else
+          echo "❌ ERROR: Terraform apply falló"
+          echo "🔍 Mostrando últimos logs..."
+          terraform apply -auto-approve tfplan 2>&1 | tail -50
+          exit 1
+        fi
     
     - name: 📊 Get Service URLs
       if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
