@@ -276,31 +276,79 @@ jobs:
     - name: 📊 Obtener URL del servicio
       working-directory: terraform
       run: |
+        echo "🔍 Obteniendo URL del servicio Cloud Run..."
+        echo ""
+        
+        # Intentar obtener la URL desde Terraform
+        SERVICE_URL=$(terraform output -raw cloud_run_service_url 2>/dev/null || echo "")
+        
+        # Si Terraform no devuelve la URL, intentar obtenerla con gcloud
+        if [ -z "$SERVICE_URL" ] || [ "$SERVICE_URL" = "null" ] || [ "$SERVICE_URL" = "" ]; then
+          echo "⚠️  No se pudo obtener la URL desde Terraform, intentando con gcloud..."
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.GCP_REGION }} \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --format="value(status.url)" 2>/dev/null || echo "")
+        fi
+        
+        # Si aún no hay URL, mostrar información de debugging
+        if [ -z "$SERVICE_URL" ] || [ "$SERVICE_URL" = "null" ] || [ "$SERVICE_URL" = "" ]; then
+          echo "❌ No se pudo obtener la URL del servicio"
+          echo ""
+          echo "🔍 Información de debugging:"
+          echo "   - Servicio: ${{ env.SERVICE_NAME }}"
+          echo "   - Región: ${{ env.GCP_REGION }}"
+          echo "   - Proyecto: ${{ secrets.GCP_PROJECT_ID }}"
+          echo ""
+          echo "📋 Outputs de Terraform disponibles:"
+          terraform output 2>/dev/null || echo "   No hay outputs disponibles"
+          echo ""
+          echo "📋 Servicios Cloud Run en la región:"
+          gcloud run services list \
+            --region=${{ env.GCP_REGION }} \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --format="table(metadata.name,status.url)" 2>/dev/null || echo "   Error al listar servicios"
+          SERVICE_URL="N/A"
+        else
+          echo "✅ URL obtenida: $SERVICE_URL"
+        fi
+        
+        # Escribir al summary
         echo "🔗 URL del servicio desplegado:" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        
-        SERVICE_URL=$(terraform output -raw cloud_run_service_url 2>/dev/null || echo "N/A")
         echo "**Cloud Run Service URL:** $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "📚 Documentación: $SERVICE_URL/docs" >> $GITHUB_STEP_SUMMARY
-        echo "🏥 Health Check: $SERVICE_URL/health" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "$SERVICE_URL" != "N/A" ] && [ -n "$SERVICE_URL" ]; then
+          echo "📚 Documentación: $SERVICE_URL/docs" >> $GITHUB_STEP_SUMMARY
+          echo "🏥 Health Check: $SERVICE_URL/health" >> $GITHUB_STEP_SUMMARY
+        fi
         
         echo ""
         echo "════════════════════════════════════════════════"
         echo "✅ DESPLIEGUE COMPLETADO"
         echo "════════════════════════════════════════════════"
-        echo "🔗 URL del servicio: $SERVICE_URL"
-        echo "📚 Documentación: $SERVICE_URL/docs"
-        echo "🏥 Health Check: $SERVICE_URL/health"
+        if [ "$SERVICE_URL" != "N/A" ] && [ -n "$SERVICE_URL" ]; then
+          echo "🔗 URL del servicio: $SERVICE_URL"
+          echo "📚 Documentación: $SERVICE_URL/docs"
+          echo "🏥 Health Check: $SERVICE_URL/health"
+        else
+          echo "⚠️  No se pudo obtener la URL del servicio"
+          echo "   Verifica que el servicio se haya creado correctamente"
+        fi
         echo "════════════════════════════════════════════════"
+        
+        # Guardar la URL en una variable de entorno para el siguiente paso
+        echo "SERVICE_URL=$SERVICE_URL" >> $GITHUB_ENV
 
     - name: 🧪 Probar endpoint de health
       run: |
-        SERVICE_URL=$(cd terraform && terraform output -raw cloud_run_service_url 2>/dev/null || echo "")
-        if [ -n "$SERVICE_URL" ] && [ "$SERVICE_URL" != "N/A" ]; then
+        if [ -n "$SERVICE_URL" ] && [ "$SERVICE_URL" != "N/A" ] && [ "$SERVICE_URL" != "" ]; then
           echo "🧪 Probando endpoint de health..."
+          echo "   URL: $SERVICE_URL/health"
           sleep 30  # Esperar a que el servicio esté listo
           curl -f "$SERVICE_URL/health" || echo "⚠️ Health check falló, pero el servicio puede estar iniciando"
         else
           echo "⚠️ No se pudo obtener la URL del servicio"
+          echo "   El servicio puede no haberse creado correctamente"
         fi
