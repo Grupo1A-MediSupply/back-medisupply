@@ -308,7 +308,8 @@ resource "google_cloud_run_v2_service" "monolith" {
   }
 
   depends_on = [
-    google_project_service.required_apis
+    google_project_service.required_apis,
+    google_secret_manager_secret_version.secret_key
   ]
 }
 
