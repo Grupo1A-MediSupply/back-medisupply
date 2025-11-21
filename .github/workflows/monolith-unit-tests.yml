@@ -3,18 +3,15 @@ name: 🧪 Tests Unitarios - Monolito MediSupply
 on:
   push:
     branches:
-      - main
-      - develop
-      - release
-      - feature/*
+      - mains
+     
     paths:
       - 'medimn/**'
       - '.github/workflows/monolith-unit-tests.yml'
   pull_request:
     branches:
-      - main
-      - develop
-      - release
+      - mains
+      
     paths:
       - 'medimn/**'
       - '.github/workflows/monolith-unit-tests.yml'
