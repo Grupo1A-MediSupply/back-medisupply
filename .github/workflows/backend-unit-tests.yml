@@ -9,7 +9,7 @@ on:
       - feature/*
     paths:
       - 'medimn/**'
-      - '.github/workflows/monolith-unit-tests.yml'
+      - '.github/workflows/backend-unit-tests.yml'
   pull_request:
     branches:
       - main
@@ -17,7 +17,7 @@ on:
       - release
     paths:
       - 'medimn/**'
-      - '.github/workflows/monolith-unit-tests.yml'
+      - '.github/workflows/backend-unit-tests.yml'
   workflow_dispatch:  # Permite ejecución manual
 
 env:
@@ -26,7 +26,7 @@ env:
 
 jobs:
   unit-tests:
-    name: Tests Unitarios - Monolito
+    name: Tests Unitarios - Backend api MediSupply
     runs-on: ubuntu-latest
     
     strategy:
@@ -56,7 +56,7 @@ jobs:
         PYTHONPATH: ${{ github.workspace }}/medimn
       run: |
         echo "════════════════════════════════════════════════"
-        echo "🧪 Ejecutando tests unitarios del monolito"
+        echo "🧪 Ejecutando tests unitarios del backend api MediSupply"
         echo "════════════════════════════════════════════════"
         echo "Python version: ${{ matrix.python-version }}"
         echo "Working directory: $(pwd)"
@@ -124,7 +124,7 @@ jobs:
       run: |
         echo "╔══════════════════════════════════════════════════════════════╗"
         echo "║                                                              ║"
-        echo "║      ✅ TESTS UNITARIOS - MONOLITO MEDISUPPLY               ║"
+        echo "║      ✅ TESTS UNITARIOS - BACKEND API MEDISUPPLY               ║"
         echo "║                                                              ║"
         echo "╚══════════════════════════════════════════════════════════════╝"
         echo ""
