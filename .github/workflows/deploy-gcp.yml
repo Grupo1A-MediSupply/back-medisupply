@@ -481,16 +481,54 @@ jobs:
       if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       working-directory: apiMS/microservices/terraform
       run: |
+        set +e  # No fallar si algún output no existe
         echo "🔗 URLs de Servicios:" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "API Gateway: $(terraform output -raw api_gateway_url 2>/dev/null || echo 'N/A')" >> $GITHUB_STEP_SUMMARY
-        echo "Auth Service: $(terraform output -raw auth_service_url)" >> $GITHUB_STEP_SUMMARY
-        echo "Product Service: $(terraform output -raw product_service_url)" >> $GITHUB_STEP_SUMMARY
-        echo "Order Service: $(terraform output -raw order_service_url)" >> $GITHUB_STEP_SUMMARY
-        echo "Logistics Service: $(terraform output -raw logistics_service_url)" >> $GITHUB_STEP_SUMMARY
-        echo "Notifications Service: $(terraform output -raw notifications_service_url)" >> $GITHUB_STEP_SUMMARY
-        echo "Inventory Service: $(terraform output -raw inventory_service_url 2>/dev/null || echo 'N/A')" >> $GITHUB_STEP_SUMMARY
-        echo "Reports Service: $(terraform output -raw reports_service_url 2>/dev/null || echo 'N/A')" >> $GITHUB_STEP_SUMMARY
+        
+        # Función helper para obtener URLs de forma segura
+        get_url() {
+          local output_name=$1
+          local url=$(terraform output -raw "$output_name" 2>/dev/null)
+          if [ $? -eq 0 ] && [ -n "$url" ] && [ "$url" != "null" ]; then
+            echo "$url"
+          else
+            echo "N/A"
+          fi
+        }
+        
+        # Obtener URLs de todos los servicios
+        API_GATEWAY_URL=$(get_url "api_gateway_url")
+        AUTH_URL=$(get_url "auth_service_url")
+        PRODUCT_URL=$(get_url "product_service_url")
+        ORDER_URL=$(get_url "order_service_url")
+        LOGISTICS_URL=$(get_url "logistics_service_url")
+        NOTIFICATIONS_URL=$(get_url "notifications_service_url")
+        INVENTORY_URL=$(get_url "inventory_service_url")
+        REPORTS_URL=$(get_url "reports_service_url")
+        
+        # Escribir al summary
+        echo "API Gateway: $API_GATEWAY_URL" >> $GITHUB_STEP_SUMMARY
+        echo "Auth Service: $AUTH_URL" >> $GITHUB_STEP_SUMMARY
+        echo "Product Service: $PRODUCT_URL" >> $GITHUB_STEP_SUMMARY
+        echo "Order Service: $ORDER_URL" >> $GITHUB_STEP_SUMMARY
+        echo "Logistics Service: $LOGISTICS_URL" >> $GITHUB_STEP_SUMMARY
+        echo "Notifications Service: $NOTIFICATIONS_URL" >> $GITHUB_STEP_SUMMARY
+        echo "Inventory Service: $INVENTORY_URL" >> $GITHUB_STEP_SUMMARY
+        echo "Reports Service: $REPORTS_URL" >> $GITHUB_STEP_SUMMARY
+        
+        # También mostrar en los logs
+        echo ""
+        echo "📊 URLs de Servicios Desplegados:"
+        echo "=================================="
+        echo "API Gateway: $API_GATEWAY_URL"
+        echo "Auth Service: $AUTH_URL"
+        echo "Product Service: $PRODUCT_URL"
+        echo "Order Service: $ORDER_URL"
+        echo "Logistics Service: $LOGISTICS_URL"
+        echo "Notifications Service: $NOTIFICATIONS_URL"
+        echo "Inventory Service: $INVENTORY_URL"
+        echo "Reports Service: $REPORTS_URL"
+        set -e
 
   # ============================================================================
   # Health Check
