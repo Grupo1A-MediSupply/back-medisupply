@@ -132,9 +132,10 @@ resource "google_secret_manager_secret" "secret_key" {
 
 # Versión del secret SECRET_KEY (crear si se proporciona el valor)
 # Esto funciona tanto para secrets existentes como para nuevos
+# Usar secret_id simple (solo el nombre) en lugar del ID completo
 resource "google_secret_manager_secret_version" "secret_key" {
   count       = var.secret_key != "" ? 1 : 0
-  secret      = local.secret_key_id
+  secret      = local.secret_key_id_simple
   secret_data = var.secret_key
 
   depends_on = [
@@ -165,11 +166,15 @@ resource "google_service_account" "cloud_run" {
 
 # Locals para determinar qué recursos usar (creados o existentes)
 locals {
-  # Secret IDs: usar existentes o creados
+  # Secret IDs completos (para IAM y referencias): usar existentes o creados
   secret_key_id = var.use_existing_secrets ? data.google_secret_manager_secret.secret_key_existing[0].secret_id : google_secret_manager_secret.secret_key[0].secret_id
   database_url_secret_id = var.enable_cloud_sql ? (
     var.use_existing_secrets ? data.google_secret_manager_secret.database_url_existing[0].secret_id : google_secret_manager_secret.database_url[0].secret_id
   ) : null
+  
+  # Secret IDs simples (solo el nombre, para crear versiones)
+  secret_key_id_simple = "${var.project_name}-secret-key"
+  database_url_secret_id_simple = "${var.project_name}-database-url"
 
   # Service Account email: usar existente o creado
   # Si create_service_account = false y service_account_email está vacío,
