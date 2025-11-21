@@ -28,6 +28,10 @@ jobs:
   unit-tests:
     name: Tests Unitarios - Backend api MediSupply
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
     
     strategy:
       matrix:
@@ -113,6 +117,7 @@ jobs:
     - name: 📊 Publicar resultados de tests
       uses: EnricoMi/publish-unit-test-result-action@v2
       if: always()
+      continue-on-error: true
       with:
         files: medimn/junit-test-results.xml
         check_name: "Tests Unitarios - Python ${{ matrix.python-version }}"
