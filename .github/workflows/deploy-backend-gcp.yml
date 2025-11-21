@@ -185,6 +185,29 @@ jobs:
         echo "🔧 Inicializando Terraform..."
         terraform init
 
+    - name: 📋 Importar o verificar servicio Cloud Run existente
+      working-directory: terraform
+      env:
+        TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+        TF_VAR_region: ${{ env.GCP_REGION }}
+        TF_VAR_service_name: ${{ env.SERVICE_NAME }}
+      run: |
+        echo "🔍 Verificando si el servicio Cloud Run ya existe..."
+        SERVICE_EXISTS=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+          --region=${{ env.GCP_REGION }} \
+          --project=${{ secrets.GCP_PROJECT_ID }} \
+          --format="value(metadata.name)" 2>/dev/null || echo "")
+        
+        if [ -n "$SERVICE_EXISTS" ]; then
+          echo "✅ El servicio ${{ env.SERVICE_NAME }} ya existe"
+          echo "📥 Importando servicio existente a Terraform..."
+          terraform import google_cloud_run_v2_service.monolith \
+            projects/${{ secrets.GCP_PROJECT_ID }}/locations/${{ env.GCP_REGION }}/services/${{ env.SERVICE_NAME }} \
+            2>/dev/null || echo "⚠️  No se pudo importar (puede que ya esté en el estado)"
+        else
+          echo "ℹ️  El servicio no existe, Terraform lo creará"
+        fi
+
     - name: 📋 Terraform Plan
       working-directory: terraform
       env:
