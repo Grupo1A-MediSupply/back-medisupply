@@ -84,6 +84,12 @@ variable "use_existing_artifact_registry" {
   default     = true
 }
 
+variable "use_existing_secrets" {
+  description = "Use existing Secret Manager secrets instead of creating new ones"
+  type        = bool
+  default     = true
+}
+
 # Variables para Cloud SQL (opcional)
 variable "enable_cloud_sql" {
   description = "Enable Cloud SQL instance"

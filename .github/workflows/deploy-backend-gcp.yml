@@ -198,12 +198,14 @@ jobs:
         TF_VAR_create_service_account: ${{ secrets.CREATE_SERVICE_ACCOUNT || 'false' }}
         TF_VAR_service_account_email: ${{ secrets.SERVICE_ACCOUNT_EMAIL || '' }}
         TF_VAR_use_existing_artifact_registry: ${{ secrets.USE_EXISTING_ARTIFACT_REGISTRY || 'true' }}
+        TF_VAR_use_existing_secrets: ${{ secrets.USE_EXISTING_SECRETS || 'true' }}
       run: |
         echo "📋 Generando plan de Terraform..."
         echo "🔍 Valores de configuración:"
         echo "   ENABLE_CLOUD_SQL: ${{ secrets.ENABLE_CLOUD_SQL || 'false' }}"
         echo "   CREATE_SERVICE_ACCOUNT: ${{ secrets.CREATE_SERVICE_ACCOUNT || 'false' }}"
         echo "   USE_EXISTING_ARTIFACT_REGISTRY: ${{ secrets.USE_EXISTING_ARTIFACT_REGISTRY || 'true' }}"
+        echo "   USE_EXISTING_SECRETS: ${{ secrets.USE_EXISTING_SECRETS || 'true' }}"
         terraform plan -out=tfplan
 
     - name: 🚀 Terraform Apply
@@ -220,6 +222,7 @@ jobs:
         TF_VAR_create_service_account: ${{ secrets.CREATE_SERVICE_ACCOUNT || 'false' }}
         TF_VAR_service_account_email: ${{ secrets.SERVICE_ACCOUNT_EMAIL || '' }}
         TF_VAR_use_existing_artifact_registry: ${{ secrets.USE_EXISTING_ARTIFACT_REGISTRY || 'true' }}
+        TF_VAR_use_existing_secrets: ${{ secrets.USE_EXISTING_SECRETS || 'true' }}
       run: |
         echo "🚀 Aplicando cambios de Terraform..."
         terraform apply -auto-approve tfplan

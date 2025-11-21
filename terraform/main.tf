@@ -102,8 +102,20 @@ resource "google_sql_user" "main" {
   password = var.db_password
 }
 
+# Data source para obtener secret existente (si use_existing_secrets = true)
+data "google_secret_manager_secret" "secret_key_existing" {
+  count     = var.use_existing_secrets ? 1 : 0
+  secret_id = "${var.project_name}-secret-key"
+}
+
+data "google_secret_manager_secret" "database_url_existing" {
+  count     = var.use_existing_secrets && var.enable_cloud_sql ? 1 : 0
+  secret_id = "${var.project_name}-database-url"
+}
+
 # Secret Manager para SECRET_KEY
 resource "google_secret_manager_secret" "secret_key" {
+  count     = var.use_existing_secrets ? 0 : 1
   secret_id = "${var.project_name}-secret-key"
 
   replication {
@@ -115,7 +127,7 @@ resource "google_secret_manager_secret" "secret_key" {
 
 # Secret Manager para DATABASE_URL (si se usa Cloud SQL)
 resource "google_secret_manager_secret" "database_url" {
-  count     = var.enable_cloud_sql ? 1 : 0
+  count     = var.enable_cloud_sql && !var.use_existing_secrets ? 1 : 0
   secret_id = "${var.project_name}-database-url"
 
   replication {
@@ -132,8 +144,15 @@ resource "google_service_account" "cloud_run" {
   display_name = "Cloud Run Service Account for MediSupply Monolith"
 }
 
-# Usar Service Account existente o el creado
+# Locals para determinar qué recursos usar (creados o existentes)
 locals {
+  # Secret IDs: usar existentes o creados
+  secret_key_id = var.use_existing_secrets ? data.google_secret_manager_secret.secret_key_existing[0].secret_id : google_secret_manager_secret.secret_key[0].secret_id
+  database_url_secret_id = var.enable_cloud_sql ? (
+    var.use_existing_secrets ? data.google_secret_manager_secret.database_url_existing[0].secret_id : google_secret_manager_secret.database_url[0].secret_id
+  ) : null
+  
+  # Service Account email: usar existente o creado
   service_account_email = var.create_service_account ? google_service_account.cloud_run[0].email : (
     var.service_account_email != "" ? var.service_account_email : (
       # Si no se crea y no se proporciona email, usar el formato por defecto
@@ -145,14 +164,14 @@ locals {
 
 # IAM Binding para acceder a Secret Manager
 resource "google_secret_manager_secret_iam_member" "secret_key_accessor" {
-  secret_id = google_secret_manager_secret.secret_key.secret_id
+  secret_id = local.secret_key_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${local.service_account_email}"
 }
 
 resource "google_secret_manager_secret_iam_member" "database_url_accessor" {
   count     = var.enable_cloud_sql ? 1 : 0
-  secret_id = google_secret_manager_secret.database_url[0].secret_id
+  secret_id = local.database_url_secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${local.service_account_email}"
 }
@@ -207,7 +226,7 @@ resource "google_cloud_run_v2_service" "monolith" {
         name = "SECRET_KEY"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.secret_key.secret_id
+            secret  = local.secret_key_id
             version = "latest"
           }
         }
@@ -219,7 +238,7 @@ resource "google_cloud_run_v2_service" "monolith" {
           name = "DATABASE_URL"
           value_source {
             secret_key_ref {
-              secret  = google_secret_manager_secret.database_url[0].secret_id
+              secret  = local.database_url_secret_id
               version = "latest"
             }
           }
@@ -256,8 +275,7 @@ resource "google_cloud_run_v2_service" "monolith" {
   }
 
   depends_on = [
-    google_project_service.required_apis,
-    google_secret_manager_secret.secret_key
+    google_project_service.required_apis
   ]
 }
 
