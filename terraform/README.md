@@ -154,6 +154,39 @@ terraform destroy
 - Cloud SQL está deshabilitado por defecto. Para habilitarlo, configura `enable_cloud_sql = true`
 - El health check endpoint debe estar disponible en `/health`
 
+## 🔐 Asignar Roles al Service Account
+
+Si usas el Compute Engine default Service Account (fallback automático), necesitas asignar los roles necesarios antes de ejecutar Terraform.
+
+### Opción 1: Usar el script automatizado (Recomendado)
+
+```bash
+export GCP_PROJECT_ID=tu-proyecto-id
+export ENABLE_CLOUD_SQL=false  # o true si usas Cloud SQL
+./terraform/assign-roles.sh
+```
+
+El script:
+- Asigna `roles/secretmanager.secretAccessor` (obligatorio)
+- Asigna `roles/cloudsql.client` solo si `ENABLE_CLOUD_SQL=true`
+- Maneja errores y muestra mensajes informativos
+
+### Opción 2: Comandos manuales
+
+**Solo Secret Manager (obligatorio):**
+```bash
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member="serviceAccount:PROJECT_ID@appspot.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+**Cloud SQL (solo si ENABLE_CLOUD_SQL=true):**
+```bash
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member="serviceAccount:PROJECT_ID@appspot.gserviceaccount.com" \
+  --role="roles/cloudsql.client"
+```
+
 ## 🔗 Enlaces Útiles
 
 - [Documentación de Cloud Run](https://cloud.google.com/run/docs)
