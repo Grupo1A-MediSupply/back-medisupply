@@ -3,15 +3,12 @@ name: 🚀 Deploy to GCP Cloud Run
 on:
   push:
     branches:
-      - main
-      - develop
-      - release
-      - feature/*
+      - mains
+    
   pull_request:
     branches:
-      - main
-      - develop
-      - release
+      - mains
+    
   workflow_dispatch:
     inputs:
       environment:
@@ -20,9 +17,8 @@ on:
         default: 'dev'
         type: choice
         options:
-          - dev
-          - staging
-          - prod
+          - devs
+          
 
 env:
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
