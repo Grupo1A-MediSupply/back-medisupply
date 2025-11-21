@@ -1,396 +1,261 @@
-# Configuración del provider AWS
+# Configuración del provider GCP
 terraform {
   required_version = ">= 1.0"
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
+    google = {
+      source  = "hashicorp/google"
       version = "~> 5.0"
     }
   }
 }
 
-provider "aws" {
-  region = var.aws_region
-
-  default_tags {
-    tags = {
-      Project     = "medisupply"
-      Environment = var.environment
-      ManagedBy   = "terraform"
-    }
-  }
+provider "google" {
+  project = var.project_id
+  region  = var.region
 }
 
-# Data sources
-data "aws_availability_zones" "available" {
-  state = "available"
-}
-
-data "aws_caller_identity" "current" {}
-
-# Usar VPC existente específico
-data "aws_vpc" "existing" {
-  id = "vpc-05119ba31240eb9bd" # VPC específico de medisupply-vpc
-}
-
-# Usar la VPC existente
-locals {
-  vpc_id = data.aws_vpc.existing.id
-}
-
-# Usar Internet Gateway existente
-data "aws_internet_gateway" "existing" {
-  filter {
-    name   = "attachment.vpc-id"
-    values = [local.vpc_id]
-  }
-}
-
-# Usar subnets existentes
-data "aws_subnets" "public" {
-  filter {
-    name   = "vpc-id"
-    values = [local.vpc_id]
-  }
-
-  filter {
-    name   = "tag:Name"
-    values = ["medisupply-public-subnet-*"]
-  }
-}
-
-data "aws_subnets" "private" {
-  filter {
-    name   = "vpc-id"
-    values = [local.vpc_id]
-  }
-
-  filter {
-    name   = "tag:Name"
-    values = ["medisupply-private-subnet-*"]
-  }
-}
-
-# Obtener las subnets específicas
-data "aws_subnet" "public_1" {
-  id = "subnet-0adf58bad0bee883a" # medisupply-public-subnet-1
-}
-
-data "aws_subnet" "public_2" {
-  id = "subnet-0eb32061dde9cae3f" # medisupply-public-subnet-2
-}
-
-data "aws_subnet" "private_1" {
-  id = "subnet-049da45f812240c7a" # medisupply-private-subnet-1
-}
-
-data "aws_subnet" "private_2" {
-  id = "subnet-013d7e1488da139f5" # medisupply-private-subnet-2
-}
-
-# Usar Route Table existente
-data "aws_route_table" "existing_public" {
-  filter {
-    name   = "vpc-id"
-    values = [local.vpc_id]
-  }
-
-  filter {
-    name   = "association.subnet-id"
-    values = [data.aws_subnet.public_1.id, data.aws_subnet.public_2.id]
-  }
-}
-
-# Security Group para ALB
-resource "aws_security_group" "alb" {
-  name_prefix = "${var.project_name}-alb-"
-  vpc_id      = local.vpc_id
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "${var.project_name}-alb-sg"
-  }
-}
-
-# Security Group para ECS Tasks
-resource "aws_security_group" "ecs_tasks" {
-  name_prefix = "${var.project_name}-ecs-tasks-"
-  vpc_id      = local.vpc_id
-
-  ingress {
-    from_port       = var.container_port
-    to_port         = var.container_port
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "${var.project_name}-ecs-tasks-sg"
-  }
-}
-
-# Application Load Balancer
-resource "aws_lb" "main" {
-  name               = "${var.project_name}-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb.id]
-  subnets            = [data.aws_subnet.public_1.id, data.aws_subnet.public_2.id]
-
-  enable_deletion_protection = false
-
-  tags = {
-    Name = "${var.project_name}-alb"
-  }
-}
-
-# Target Group para ALB
-resource "aws_lb_target_group" "main" {
-  name        = "${var.project_name}-tg"
-  port        = var.container_port
-  protocol    = "HTTP"
-  vpc_id      = local.vpc_id
-  target_type = "ip"
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    interval            = 30
-    matcher             = "200"
-    path                = "/health"
-    port                = "traffic-port"
-    protocol            = "HTTP"
-    timeout             = 5
-    unhealthy_threshold = 2
-  }
-
-  tags = {
-    Name = "${var.project_name}-tg"
-  }
-}
-
-# Listener para ALB
-resource "aws_lb_listener" "main" {
-  load_balancer_arn = aws_lb.main.arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.main.arn
-  }
-}
-
-# ECR Repositories
-resource "aws_ecr_repository" "auth_service" {
-  name                 = "medisupply-auth-service"
-  image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  tags = {
-    Name = "medisupply-auth-service"
-  }
-}
-
-resource "aws_ecr_repository" "product_service" {
-  name                 = "medisupply-product-service"
-  image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  tags = {
-    Name = "medisupply-product-service"
-  }
-}
-
-# ECS Cluster
-resource "aws_ecs_cluster" "main" {
-  name = var.ecs_cluster_name
-
-  setting {
-    name  = "containerInsights"
-    value = "enabled"
-  }
-
-  tags = {
-    Name = var.ecs_cluster_name
-  }
-}
-
-# ECS Cluster Capacity Providers
-resource "aws_ecs_cluster_capacity_providers" "main" {
-  cluster_name = aws_ecs_cluster.main.name
-
-  capacity_providers = ["FARGATE", "FARGATE_SPOT"]
-
-  default_capacity_provider_strategy {
-    base              = 1
-    weight            = 100
-    capacity_provider = "FARGATE"
-  }
-}
-
-# IAM Role para ECS Task Execution
-resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "${var.project_name}-ecs-task-execution-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
-  role       = aws_iam_role.ecs_task_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-# IAM Role para ECS Task
-resource "aws_iam_role" "ecs_task_role" {
-  name = "${var.project_name}-ecs-task-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-# CloudWatch Log Group
-resource "aws_cloudwatch_log_group" "main" {
-  name              = "/ecs/${var.project_name}"
-  retention_in_days = 7
-
-  tags = {
-    Name = "${var.project_name}-log-group"
-  }
-}
-
-# ECS Task Definition
-resource "aws_ecs_task_definition" "main" {
-  family                   = "${var.project_name}-task"
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
-  task_role_arn            = aws_iam_role.ecs_task_role.arn
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = var.fargate_cpu
-  memory                   = var.fargate_memory
-
-  container_definitions = jsonencode([
-    {
-      name      = var.container_name
-      image     = "${aws_ecr_repository.auth_service.repository_url}:latest"
-      essential = true
-
-      portMappings = [
-        {
-          containerPort = var.container_port
-          hostPort      = var.container_port
-          protocol      = "tcp"
-        }
-      ]
-
-      environment = [
-        {
-          name  = "ENVIRONMENT"
-          value = var.environment
-        }
-      ]
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = aws_cloudwatch_log_group.main.name
-          awslogs-region        = var.aws_region
-          awslogs-stream-prefix = "ecs"
-        }
-      }
-
-      healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:${var.container_port}/health || exit 1"]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 60
-      }
-    }
+# Habilitar APIs necesarias
+resource "google_project_service" "required_apis" {
+  for_each = toset([
+    "run.googleapis.com",
+    "artifactregistry.googleapis.com",
+    "cloudsql.googleapis.com",
+    "secretmanager.googleapis.com",
+    "iam.googleapis.com"
   ])
 
-  tags = {
-    Name = "${var.project_name}-task-definition"
-  }
+  service = each.value
+  project = var.project_id
+
+  disable_on_destroy = false
 }
 
-# ECS Service
-resource "aws_ecs_service" "main" {
-  name            = var.ecs_service_name
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.main.arn
-  desired_count   = var.app_count
-  launch_type     = "FARGATE"
+# Artifact Registry Repository para el monolito
+resource "google_artifact_registry_repository" "monolith" {
+  location      = var.region
+  repository_id = var.artifact_registry_name
+  description   = "Docker repository for MediSupply Monolith"
+  format        = "DOCKER"
 
-  network_configuration {
-    security_groups  = [aws_security_group.ecs_tasks.id]
-    subnets          = [data.aws_subnet.public_1.id, data.aws_subnet.public_2.id]
-    assign_public_ip = true
+  depends_on = [google_project_service.required_apis]
+}
+
+# Cloud SQL Instance (PostgreSQL) - Opcional
+resource "google_sql_database_instance" "main" {
+  count            = var.enable_cloud_sql ? 1 : 0
+  name             = "${var.project_name}-db-instance"
+  database_version = var.db_version
+  region           = var.region
+
+  settings {
+    tier              = var.db_tier
+    availability_type = var.db_availability_type
+    disk_size         = var.db_disk_size
+    disk_type         = "PD_SSD"
+    disk_autoresize   = true
+
+    backup_configuration {
+      enabled                        = true
+      start_time                     = "03:00"
+      point_in_time_recovery_enabled = true
+      transaction_log_retention_days  = 7
+      retained_backups               = 7
+    }
+
+    ip_configuration {
+      ipv4_enabled                                  = false
+      private_network                               = null
+      enable_private_path_for_google_cloud_services = true
+    }
+
+    database_flags {
+      name  = "max_connections"
+      value = "100"
+    }
   }
 
-  load_balancer {
-    target_group_arn = aws_lb_target_group.main.arn
-    container_name   = var.container_name
-    container_port   = var.container_port
+  deletion_protection = false
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Cloud SQL Database
+resource "google_sql_database" "main" {
+  count    = var.enable_cloud_sql ? 1 : 0
+  name     = var.db_name
+  instance = google_sql_database_instance.main[0].name
+}
+
+# Cloud SQL User
+resource "google_sql_user" "main" {
+  count    = var.enable_cloud_sql ? 1 : 0
+  name     = var.db_user
+  instance = google_sql_database_instance.main[0].name
+  password = var.db_password
+}
+
+# Secret Manager para SECRET_KEY
+resource "google_secret_manager_secret" "secret_key" {
+  secret_id = "${var.project_name}-secret-key"
+
+  replication {
+    automatic = true
   }
 
-  depends_on = [aws_lb_listener.main]
+  depends_on = [google_project_service.required_apis]
+}
 
-  tags = {
-    Name = var.ecs_service_name
+# Secret Manager para DATABASE_URL (si se usa Cloud SQL)
+resource "google_secret_manager_secret" "database_url" {
+  count     = var.enable_cloud_sql ? 1 : 0
+  secret_id = "${var.project_name}-database-url"
+
+  replication {
+    automatic = true
   }
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# Service Account para Cloud Run
+resource "google_service_account" "cloud_run" {
+  account_id   = "${var.project_name}-cloud-run-sa"
+  display_name = "Cloud Run Service Account for MediSupply Monolith"
+}
+
+# IAM Binding para acceder a Secret Manager
+resource "google_secret_manager_secret_iam_member" "secret_key_accessor" {
+  secret_id = google_secret_manager_secret.secret_key.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "database_url_accessor" {
+  count     = var.enable_cloud_sql ? 1 : 0
+  secret_id = google_secret_manager_secret.database_url[0].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run.email}"
+}
+
+# IAM Binding para acceder a Cloud SQL (si está habilitado)
+resource "google_project_iam_member" "cloud_sql_client" {
+  count   = var.enable_cloud_sql ? 1 : 0
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.cloud_run.email}"
+}
+
+# Cloud Run Service
+resource "google_cloud_run_v2_service" "monolith" {
+  name     = var.service_name
+  location = var.region
+
+  template {
+    service_account = google_service_account.cloud_run.email
+
+    scaling {
+      min_instance_count = var.min_instances
+      max_instance_count = var.max_instances
+    }
+
+    containers {
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_name}/${var.service_name}:${var.image_tag}"
+
+      ports {
+        container_port = var.container_port
+      }
+
+      resources {
+        limits = {
+          cpu    = var.cpu_limit
+          memory = var.memory_limit
+        }
+        cpu_idle = true
+      }
+
+      env {
+        name  = "ENVIRONMENT"
+        value = var.environment
+      }
+
+      env {
+        name  = "SERVICE_PORT"
+        value = tostring(var.container_port)
+      }
+
+      env {
+        name = "SECRET_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.secret_key.secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      dynamic "env" {
+        for_each = var.enable_cloud_sql ? [1] : []
+        content {
+          name = "DATABASE_URL"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.database_url[0].secret_id
+              version = "latest"
+            }
+          }
+        }
+      }
+
+      startup_probe {
+        http_get {
+          path = "/health"
+        }
+        initial_delay_seconds = 10
+        timeout_seconds       = 5
+        period_seconds        = 10
+        failure_threshold     = 3
+      }
+
+      liveness_probe {
+        http_get {
+          path = "/health"
+        }
+        initial_delay_seconds = 30
+        timeout_seconds       = 5
+        period_seconds        = 30
+        failure_threshold     = 3
+      }
+    }
+
+    timeout = "300s"
+  }
+
+  traffic {
+    percent = 100
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+  }
+
+  depends_on = [
+    google_project_service.required_apis,
+    google_artifact_registry_repository.monolith,
+    google_secret_manager_secret.secret_key
+  ]
+}
+
+# IAM Policy para permitir acceso público (o autenticado)
+resource "google_cloud_run_service_iam_member" "public_access" {
+  count    = var.allow_unauthenticated ? 1 : 0
+  service  = google_cloud_run_v2_service.monolith.name
+  location = google_cloud_run_v2_service.monolith.location
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+# IAM Policy para acceso autenticado (si no es público)
+resource "google_cloud_run_service_iam_member" "authenticated_access" {
+  count    = var.allow_unauthenticated ? 0 : 1
+  service  = google_cloud_run_v2_service.monolith.name
+  location = google_cloud_run_v2_service.monolith.location
+  role     = "roles/run.invoker"
+  member   = "allUsers" # Cambiar a "allAuthenticatedUsers" si quieres solo usuarios autenticados
 }

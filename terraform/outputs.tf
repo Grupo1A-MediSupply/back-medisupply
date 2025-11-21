@@ -1,69 +1,51 @@
 # Outputs para información importante después del despliegue
 
-output "ecs_cluster_name" {
-  description = "Name of the ECS cluster"
-  value       = aws_ecs_cluster.main.name
+output "cloud_run_service_url" {
+  description = "URL of the Cloud Run service"
+  value       = google_cloud_run_v2_service.monolith.uri
 }
 
-output "ecs_service_name" {
-  description = "Name of the ECS service"
-  value       = aws_ecs_service.main.name
+output "cloud_run_service_name" {
+  description = "Name of the Cloud Run service"
+  value       = google_cloud_run_v2_service.monolith.name
 }
 
-output "ecs_service_url" {
-  description = "URL of the ECS service"
-  value       = aws_lb.main.dns_name != null ? "http://${aws_lb.main.dns_name}" : null
+output "cloud_run_service_location" {
+  description = "Location of the Cloud Run service"
+  value       = google_cloud_run_v2_service.monolith.location
 }
 
-output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
-  value       = aws_lb.main.dns_name
+output "artifact_registry_repository_url" {
+  description = "URL of the Artifact Registry repository"
+  value       = google_artifact_registry_repository.monolith.name
 }
 
-output "alb_zone_id" {
-  description = "Zone ID of the Application Load Balancer"
-  value       = aws_lb.main.zone_id
+output "artifact_registry_repository_id" {
+  description = "ID of the Artifact Registry repository"
+  value       = google_artifact_registry_repository.monolith.repository_id
 }
 
-output "vpc_id" {
-  description = "ID of the VPC"
-  value       = local.vpc_id
+output "service_account_email" {
+  description = "Email of the Cloud Run service account"
+  value       = google_service_account.cloud_run.email
 }
 
-output "public_subnet_ids" {
-  description = "IDs of the public subnets"
-  value       = [data.aws_subnet.public_1.id, data.aws_subnet.public_2.id]
+output "cloud_sql_instance_name" {
+  description = "Name of the Cloud SQL instance (if enabled)"
+  value       = var.enable_cloud_sql ? google_sql_database_instance.main[0].name : null
 }
 
-output "private_subnet_ids" {
-  description = "IDs of the private subnets"
-  value       = [data.aws_subnet.private_1.id, data.aws_subnet.private_2.id]
+output "cloud_sql_connection_name" {
+  description = "Connection name of the Cloud SQL instance (if enabled)"
+  value       = var.enable_cloud_sql ? google_sql_database_instance.main[0].connection_name : null
 }
 
-output "ecr_repository_urls" {
-  description = "URLs of the ECR repositories"
-  value = {
-    auth_service    = aws_ecr_repository.auth_service.repository_url
-    product_service = aws_ecr_repository.product_service.repository_url
-  }
+output "secret_key_secret_id" {
+  description = "Secret Manager secret ID for SECRET_KEY"
+  value       = google_secret_manager_secret.secret_key.secret_id
 }
 
-output "cloudwatch_log_group_name" {
-  description = "Name of the CloudWatch log group"
-  value       = aws_cloudwatch_log_group.main.name
-}
-
-output "task_definition_arn" {
-  description = "ARN of the ECS task definition"
-  value       = aws_ecs_task_definition.main.arn
-}
-
-output "security_group_alb_id" {
-  description = "ID of the ALB security group"
-  value       = aws_security_group.alb.id
-}
-
-output "security_group_ecs_tasks_id" {
-  description = "ID of the ECS tasks security group"
-  value       = aws_security_group.ecs_tasks.id
+output "database_url_secret_id" {
+  description = "Secret Manager secret ID for DATABASE_URL (if Cloud SQL enabled)"
+  value       = var.enable_cloud_sql ? google_secret_manager_secret.database_url[0].secret_id : null
 }
