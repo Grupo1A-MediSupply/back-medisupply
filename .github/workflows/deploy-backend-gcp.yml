@@ -9,6 +9,7 @@ on:
       - feature/*
     paths:
       - 'medimn/**'
+      - 'terraform/**'
       - '.github/workflows/deploy-backend-gcp.yml'
   pull_request:
     branches:
