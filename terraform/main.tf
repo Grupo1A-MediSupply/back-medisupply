@@ -153,11 +153,13 @@ locals {
   ) : null
 
   # Service Account email: usar existente o creado
+  # Si create_service_account = false y service_account_email está vacío,
+  # intentar usar el Compute Engine default service account como fallback
   service_account_email = var.create_service_account ? google_service_account.cloud_run[0].email : (
     var.service_account_email != "" ? var.service_account_email : (
-      # Si no se crea y no se proporciona email, usar el formato por defecto
-      # pero esto requerirá que el SA exista previamente
-      "${var.project_name}-cloud-run-sa@${var.project_id}.iam.gserviceaccount.com"
+      # Fallback: usar Compute Engine default service account
+      # Este SA existe por defecto en todos los proyectos GCP
+      "${var.project_id}@appspot.gserviceaccount.com"
     )
   )
 }

@@ -205,8 +205,11 @@ jobs:
         echo "🔍 Valores de configuración:"
         echo "   ENABLE_CLOUD_SQL: ${{ secrets.ENABLE_CLOUD_SQL || 'false' }}"
         echo "   CREATE_SERVICE_ACCOUNT: ${{ secrets.CREATE_SERVICE_ACCOUNT || 'false' }}"
+        echo "   SERVICE_ACCOUNT_EMAIL: ${{ secrets.SERVICE_ACCOUNT_EMAIL || '(vacío - se usará formato por defecto)' }}"
         echo "   USE_EXISTING_ARTIFACT_REGISTRY: ${{ secrets.USE_EXISTING_ARTIFACT_REGISTRY || 'true' }}"
         echo "   USE_EXISTING_SECRETS: ${{ secrets.USE_EXISTING_SECRETS || 'true' }}"
+        echo ""
+        echo "⚠️  IMPORTANTE: Si CREATE_SERVICE_ACCOUNT=false, SERVICE_ACCOUNT_EMAIL debe apuntar a un SA existente"
         terraform plan -out=tfplan
 
     - name: 🚀 Terraform Apply
