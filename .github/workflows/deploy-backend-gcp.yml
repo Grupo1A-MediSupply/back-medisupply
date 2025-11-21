@@ -68,32 +68,6 @@ jobs:
         echo "🧪 Ejecutando tests antes del despliegue..."
         pytest tests/unit/ -v --tb=short || echo "⚠️ Tests fallaron, continuando con despliegue..."
 
-    - name: 🐳 Configurar Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: 🔐 Autenticar Docker con Artifact Registry
-      run: |
-        gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
-
-    - name: 📦 Construir y subir imagen Docker
-      working-directory: medimn
-      run: |
-        echo "🔨 Construyendo imagen Docker..."
-        IMAGE_TAG=${{ github.sha }}
-        IMAGE_NAME="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/${{ env.SERVICE_NAME }}"
-        
-        docker build \
-          --platform linux/amd64 \
-          -t ${IMAGE_NAME}:${IMAGE_TAG} \
-          -t ${IMAGE_NAME}:latest \
-          .
-        
-        echo "📤 Subiendo imagen a Artifact Registry..."
-        docker push ${IMAGE_NAME}:${IMAGE_TAG}
-        docker push ${IMAGE_NAME}:latest
-        
-        echo "✅ Imagen subida: ${IMAGE_NAME}:${IMAGE_TAG}"
-
     - name: 📥 Instalar Terraform
       uses: hashicorp/setup-terraform@v3
       with:
@@ -128,8 +102,51 @@ jobs:
         echo "📋 Generando plan de Terraform..."
         terraform plan -out=tfplan
 
-    - name: 🚀 Terraform Apply
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release' || github.ref == 'refs/heads/feature/*')
+    - name: 📦 Crear Artifact Registry Repository (si no existe)
+      run: |
+        echo "📦 Verificando si el repositorio de Artifact Registry existe..."
+        if ! gcloud artifacts repositories describe ${{ env.ARTIFACT_REGISTRY }} \
+          --location=${{ env.GCP_REGION }} \
+          --project=${{ env.GCP_PROJECT_ID }} 2>/dev/null; then
+          echo "📦 Creando repositorio de Artifact Registry..."
+          gcloud artifacts repositories create ${{ env.ARTIFACT_REGISTRY }} \
+            --repository-format=docker \
+            --location=${{ env.GCP_REGION }} \
+            --description="Docker repository for MediSupply Monolith" \
+            --project=${{ env.GCP_PROJECT_ID }}
+          echo "✅ Repositorio creado exitosamente"
+        else
+          echo "✅ El repositorio ya existe"
+        fi
+
+    - name: 🐳 Configurar Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: 🔐 Autenticar Docker con Artifact Registry
+      run: |
+        gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+    - name: 📦 Construir y subir imagen Docker
+      working-directory: medimn
+      run: |
+        echo "🔨 Construyendo imagen Docker..."
+        IMAGE_TAG=${{ github.sha }}
+        IMAGE_NAME="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/${{ env.SERVICE_NAME }}"
+        
+        docker build \
+          --platform linux/amd64 \
+          -t ${IMAGE_NAME}:${IMAGE_TAG} \
+          -t ${IMAGE_NAME}:latest \
+          .
+        
+        echo "📤 Subiendo imagen a Artifact Registry..."
+        docker push ${IMAGE_NAME}:${IMAGE_TAG}
+        docker push ${IMAGE_NAME}:latest
+        
+        echo "✅ Imagen subida: ${IMAGE_NAME}:${IMAGE_TAG}"
+
+    - name: 🚀 Terraform Apply (Cloud Run Service)
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release' || startsWith(github.ref, 'refs/heads/feature/'))
       working-directory: terraform
       env:
         TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
@@ -141,7 +158,7 @@ jobs:
         TF_VAR_enable_cloud_sql: ${{ secrets.ENABLE_CLOUD_SQL || 'false' }}
         TF_VAR_db_password: ${{ secrets.DB_PASSWORD || '' }}
       run: |
-        echo "🚀 Aplicando cambios de Terraform..."
+        echo "🚀 Aplicando servicio Cloud Run..."
         terraform apply -auto-approve tfplan
 
     - name: 📊 Obtener URL del servicio
