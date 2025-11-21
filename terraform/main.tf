@@ -37,11 +37,14 @@ resource "google_project_service" "required_apis" {
 }
 
 # Artifact Registry Repository para el monolito
+# Si use_existing_artifact_registry = true, no intenta crear el repositorio
+# (asume que ya existe y fue creado por el pipeline o manualmente)
 resource "google_artifact_registry_repository" "monolith" {
-  location      = var.region
+  count        = var.use_existing_artifact_registry ? 0 : 1
+  location     = var.region
   repository_id = var.artifact_registry_name
-  description   = "Docker repository for MediSupply Monolith"
-  format        = "DOCKER"
+  description  = "Docker repository for MediSupply Monolith"
+  format       = "DOCKER"
 
   depends_on = [google_project_service.required_apis]
 }
@@ -132,7 +135,11 @@ resource "google_service_account" "cloud_run" {
 # Usar Service Account existente o el creado
 locals {
   service_account_email = var.create_service_account ? google_service_account.cloud_run[0].email : (
-    var.service_account_email != "" ? var.service_account_email : "${var.project_name}-cloud-run-sa@${var.project_id}.iam.gserviceaccount.com"
+    var.service_account_email != "" ? var.service_account_email : (
+      # Si no se crea y no se proporciona email, usar el formato por defecto
+      # pero esto requerirá que el SA exista previamente
+      "${var.project_name}-cloud-run-sa@${var.project_id}.iam.gserviceaccount.com"
+    )
   )
 }
 
@@ -250,7 +257,6 @@ resource "google_cloud_run_v2_service" "monolith" {
 
   depends_on = [
     google_project_service.required_apis,
-    google_artifact_registry_repository.monolith,
     google_secret_manager_secret.secret_key
   ]
 }

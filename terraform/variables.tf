@@ -78,6 +78,12 @@ variable "artifact_registry_name" {
   default     = "medisupply-docker-repo"
 }
 
+variable "use_existing_artifact_registry" {
+  description = "Use existing Artifact Registry repository instead of creating a new one"
+  type        = bool
+  default     = true
+}
+
 # Variables para Cloud SQL (opcional)
 variable "enable_cloud_sql" {
   description = "Enable Cloud SQL instance"

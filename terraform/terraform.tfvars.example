@@ -19,6 +19,8 @@ allow_unauthenticated = true
 
 # Configuración Artifact Registry
 artifact_registry_name = "medisupply-docker-repo"
+use_existing_artifact_registry = true  # true si el repositorio ya existe (creado por pipeline o manualmente)
+use_existing_artifact_registry = true  # Cambiar a false si quieres que Terraform cree el repositorio
 
 # Configuración Cloud SQL (opcional)
 enable_cloud_sql      = false
