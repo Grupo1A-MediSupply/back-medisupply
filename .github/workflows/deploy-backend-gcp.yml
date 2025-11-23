@@ -5,8 +5,7 @@ on:
     branches:
       - main
       - develop
-      - release
-      - feature/*
+      - release    
     paths:
       - 'medimn/**'
       - 'terraform/**'
@@ -16,7 +15,6 @@ on:
       - main
       - develop
       - release
-      - feature/*
     paths:
       - 'medimn/**'
       - '.github/workflows/deploy-backend-gcp.yml'
