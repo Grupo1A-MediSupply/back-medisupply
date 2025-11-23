@@ -1,4 +1,0 @@
-"""
-Microservicios con Arquitectura Hexagonal
-"""
-

@@ -1,4 +1,0 @@
-"""
-Microservicio de Notificaciones
-"""
-

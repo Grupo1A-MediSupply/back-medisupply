@@ -1,0 +1,4 @@
+"""
+Infraestructura compartida del monolito
+"""
+

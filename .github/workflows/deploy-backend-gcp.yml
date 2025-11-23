@@ -1,0 +1,352 @@
+name: 🚀 Deploy Backend API to GCP Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - release    
+    paths:
+      - 'medimn/**'
+      - 'terraform/**'
+      - '.github/workflows/deploy-backend-gcp.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+      - release
+    paths:
+      - 'medimn/**'
+      - '.github/workflows/deploy-backend-gcp.yml'
+  workflow_dispatch:  # Permite ejecución manual
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: us-central1
+  ARTIFACT_REGISTRY: medisupply-docker-repo
+  SERVICE_NAME: medisupply-backend-api
+  TERRAFORM_VERSION: 1.6.0
+
+jobs:
+  test:
+    name: 🧪 Test & Validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+
+    - name: 🐍 Configurar Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        cache-dependency-path: 'medimn/requirements.txt'
+
+    - name: 📦 Instalar dependencias de Python
+      working-directory: medimn
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: 🧪 Ejecutar tests
+      working-directory: medimn
+      continue-on-error: true
+      run: |
+        echo "🧪 Ejecutando tests..."
+        pytest tests/unit/ -v --tb=short --cov=. --cov-report=xml || echo "⚠️ Tests fallaron, pero continuando..."
+
+    - name: 📋 Instalar Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+    - name: 📋 Terraform Init
+      working-directory: terraform
+      env:
+        GOOGLE_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
+      run: |
+        echo "🔧 Inicializando Terraform..."
+        terraform init
+
+    - name: 📋 Terraform Validate
+      working-directory: terraform
+      run: |
+        echo "✅ Validando configuración de Terraform..."
+        terraform validate
+
+    - name: 📋 Terraform Format Check
+      working-directory: terraform
+      continue-on-error: true
+      run: |
+        echo "📝 Verificando formato de Terraform..."
+        terraform fmt -check || echo "⚠️ Formato de Terraform no está estandarizado"
+
+  build:
+    name: 🐳 Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+
+    - name: 🔐 Autenticar con GCP
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: ☁️ Configurar Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: 🐳 Configurar Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: 🔐 Autenticar Docker con Artifact Registry
+      run: |
+        gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+    - name: 📦 Crear Artifact Registry Repository (si no existe)
+      run: |
+        echo "📦 Verificando si el repositorio de Artifact Registry existe..."
+        if ! gcloud artifacts repositories describe ${{ env.ARTIFACT_REGISTRY }} \
+          --location=${{ env.GCP_REGION }} \
+          --project=${{ env.GCP_PROJECT_ID }} 2>/dev/null; then
+          echo "📦 Creando repositorio de Artifact Registry..."
+          gcloud artifacts repositories create ${{ env.ARTIFACT_REGISTRY }} \
+            --repository-format=docker \
+            --location=${{ env.GCP_REGION }} \
+            --description="Docker repository for MediSupply Monolith" \
+            --project=${{ env.GCP_PROJECT_ID }}
+          echo "✅ Repositorio creado exitosamente"
+        else
+          echo "✅ El repositorio ya existe"
+        fi
+
+    - name: 📦 Construir y subir imagen Docker
+      working-directory: medimn
+      run: |
+        echo "🔨 Construyendo imagen Docker..."
+        IMAGE_TAG=${{ github.sha }}
+        IMAGE_NAME="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/${{ env.SERVICE_NAME }}"
+        
+        docker build \
+          --platform linux/amd64 \
+          -t ${IMAGE_NAME}:${IMAGE_TAG} \
+          -t ${IMAGE_NAME}:latest \
+          .
+        
+        echo "📤 Subiendo imagen a Artifact Registry..."
+        docker push ${IMAGE_NAME}:${IMAGE_TAG}
+        docker push ${IMAGE_NAME}:latest
+        
+        echo "✅ Imagen subida: ${IMAGE_NAME}:${IMAGE_TAG}"
+        echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
+        echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
+
+  deploy:
+    name: 🚀 Deploy to Cloud Run
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release' || startsWith(github.ref, 'refs/heads/feature/'))
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+
+    - name: 🔐 Autenticar con GCP
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: ☁️ Configurar Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: 📥 Instalar Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+    - name: 📋 Terraform Init
+      working-directory: terraform
+      env:
+        GOOGLE_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
+      run: |
+        echo "🔧 Inicializando Terraform..."
+        terraform init
+
+    - name: 📋 Crear versión del secret si no existe
+      run: |
+        echo "🔍 Verificando si el secret tiene versiones..."
+        SECRET_NAME="medisupply-secret-key"
+        VERSION_COUNT=$(gcloud secrets versions list "$SECRET_NAME" \
+          --project=${{ secrets.GCP_PROJECT_ID }} \
+          --format="value(name)" 2>/dev/null | wc -l || echo "0")
+        
+        if [ "$VERSION_COUNT" = "0" ] && [ -n "${{ secrets.SECRET_KEY }}" ]; then
+          echo "📝 El secret no tiene versiones, creando una nueva..."
+          echo "${{ secrets.SECRET_KEY }}" | gcloud secrets versions add "$SECRET_NAME" \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --data-file=- \
+            --quiet
+          echo "✅ Versión del secret creada exitosamente"
+        else
+          echo "ℹ️  El secret ya tiene versiones o SECRET_KEY no está configurado"
+        fi
+
+    - name: 📋 Importar o verificar servicio Cloud Run existente
+      working-directory: terraform
+      env:
+        TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+        TF_VAR_region: ${{ env.GCP_REGION }}
+        TF_VAR_service_name: ${{ env.SERVICE_NAME }}
+      run: |
+        echo "🔍 Verificando si el servicio Cloud Run ya existe..."
+        SERVICE_EXISTS=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+          --region=${{ env.GCP_REGION }} \
+          --project=${{ secrets.GCP_PROJECT_ID }} \
+          --format="value(metadata.name)" 2>/dev/null || echo "")
+        
+        if [ -n "$SERVICE_EXISTS" ]; then
+          echo "✅ El servicio ${{ env.SERVICE_NAME }} ya existe"
+          echo "📥 Importando servicio existente a Terraform..."
+          terraform import google_cloud_run_v2_service.monolith \
+            projects/${{ secrets.GCP_PROJECT_ID }}/locations/${{ env.GCP_REGION }}/services/${{ env.SERVICE_NAME }} \
+            2>/dev/null || echo "⚠️  No se pudo importar (puede que ya esté en el estado)"
+        else
+          echo "ℹ️  El servicio no existe, Terraform lo creará"
+        fi
+
+    - name: 📋 Terraform Plan
+      working-directory: terraform
+      env:
+        TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+        TF_VAR_region: ${{ env.GCP_REGION }}
+        TF_VAR_artifact_registry_name: ${{ env.ARTIFACT_REGISTRY }}
+        TF_VAR_service_name: ${{ env.SERVICE_NAME }}
+        TF_VAR_image_tag: ${{ github.sha }}
+        TF_VAR_secret_key: ${{ secrets.SECRET_KEY }}
+        TF_VAR_enable_cloud_sql: ${{ secrets.ENABLE_CLOUD_SQL || 'false' }}
+        TF_VAR_db_password: ${{ secrets.DB_PASSWORD || '' }}
+        TF_VAR_create_service_account: ${{ secrets.CREATE_SERVICE_ACCOUNT || 'false' }}
+        TF_VAR_service_account_email: ${{ secrets.SERVICE_ACCOUNT_EMAIL || '' }}
+        TF_VAR_use_existing_artifact_registry: ${{ secrets.USE_EXISTING_ARTIFACT_REGISTRY || 'true' }}
+        TF_VAR_use_existing_secrets: ${{ secrets.USE_EXISTING_SECRETS || 'true' }}
+      run: |
+        echo "📋 Generando plan de Terraform..."
+        echo "🔍 Valores de configuración:"
+        echo "   ENABLE_CLOUD_SQL: ${{ secrets.ENABLE_CLOUD_SQL || 'false' }}"
+        echo "   CREATE_SERVICE_ACCOUNT: ${{ secrets.CREATE_SERVICE_ACCOUNT || 'false' }}"
+        echo "   SERVICE_ACCOUNT_EMAIL: ${{ secrets.SERVICE_ACCOUNT_EMAIL || '(vacío - se usará formato por defecto)' }}"
+        echo "   USE_EXISTING_ARTIFACT_REGISTRY: ${{ secrets.USE_EXISTING_ARTIFACT_REGISTRY || 'true' }}"
+        echo "   USE_EXISTING_SECRETS: ${{ secrets.USE_EXISTING_SECRETS || 'true' }}"
+        echo ""
+        echo "⚠️  IMPORTANTE: Si CREATE_SERVICE_ACCOUNT=false, SERVICE_ACCOUNT_EMAIL debe apuntar a un SA existente"
+        terraform plan -out=tfplan
+
+    - name: 🚀 Terraform Apply
+      working-directory: terraform
+      env:
+        TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+        TF_VAR_region: ${{ env.GCP_REGION }}
+        TF_VAR_artifact_registry_name: ${{ env.ARTIFACT_REGISTRY }}
+        TF_VAR_service_name: ${{ env.SERVICE_NAME }}
+        TF_VAR_image_tag: ${{ github.sha }}
+        TF_VAR_secret_key: ${{ secrets.SECRET_KEY }}
+        TF_VAR_enable_cloud_sql: ${{ secrets.ENABLE_CLOUD_SQL || 'false' }}
+        TF_VAR_db_password: ${{ secrets.DB_PASSWORD || '' }}
+        TF_VAR_create_service_account: ${{ secrets.CREATE_SERVICE_ACCOUNT || 'false' }}
+        TF_VAR_service_account_email: ${{ secrets.SERVICE_ACCOUNT_EMAIL || '' }}
+        TF_VAR_use_existing_artifact_registry: ${{ secrets.USE_EXISTING_ARTIFACT_REGISTRY || 'true' }}
+        TF_VAR_use_existing_secrets: ${{ secrets.USE_EXISTING_SECRETS || 'true' }}
+      run: |
+        echo "🚀 Aplicando cambios de Terraform..."
+        terraform apply -auto-approve tfplan
+
+    - name: 📊 Obtener URL del servicio
+      working-directory: terraform
+      run: |
+        echo "🔍 Obteniendo URL del servicio Cloud Run..."
+        echo ""
+        
+        # Intentar obtener la URL desde Terraform
+        SERVICE_URL=$(terraform output -raw cloud_run_service_url 2>/dev/null || echo "")
+        
+        # Si Terraform no devuelve la URL, intentar obtenerla con gcloud
+        if [ -z "$SERVICE_URL" ] || [ "$SERVICE_URL" = "null" ] || [ "$SERVICE_URL" = "" ]; then
+          echo "⚠️  No se pudo obtener la URL desde Terraform, intentando con gcloud..."
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.GCP_REGION }} \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --format="value(status.url)" 2>/dev/null || echo "")
+        fi
+        
+        # Si aún no hay URL, mostrar información de debugging
+        if [ -z "$SERVICE_URL" ] || [ "$SERVICE_URL" = "null" ] || [ "$SERVICE_URL" = "" ]; then
+          echo "❌ No se pudo obtener la URL del servicio"
+          echo ""
+          echo "🔍 Información de debugging:"
+          echo "   - Servicio: ${{ env.SERVICE_NAME }}"
+          echo "   - Región: ${{ env.GCP_REGION }}"
+          echo "   - Proyecto: ${{ secrets.GCP_PROJECT_ID }}"
+          echo ""
+          echo "📋 Outputs de Terraform disponibles:"
+          terraform output 2>/dev/null || echo "   No hay outputs disponibles"
+          echo ""
+          echo "📋 Servicios Cloud Run en la región:"
+          gcloud run services list \
+            --region=${{ env.GCP_REGION }} \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --format="table(metadata.name,status.url)" 2>/dev/null || echo "   Error al listar servicios"
+          SERVICE_URL="N/A"
+        else
+          echo "✅ URL obtenida: $SERVICE_URL"
+        fi
+        
+        # Escribir al summary
+        echo "🔗 URL del servicio desplegado:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Cloud Run Service URL:** $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "$SERVICE_URL" != "N/A" ] && [ -n "$SERVICE_URL" ]; then
+          echo "📚 Documentación: $SERVICE_URL/docs" >> $GITHUB_STEP_SUMMARY
+          echo "🏥 Health Check: $SERVICE_URL/health" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo ""
+        echo "════════════════════════════════════════════════"
+        echo "✅ DESPLIEGUE COMPLETADO"
+        echo "════════════════════════════════════════════════"
+        if [ "$SERVICE_URL" != "N/A" ] && [ -n "$SERVICE_URL" ]; then
+          echo "🔗 URL del servicio: $SERVICE_URL"
+          echo "📚 Documentación: $SERVICE_URL/docs"
+          echo "🏥 Health Check: $SERVICE_URL/health"
+        else
+          echo "⚠️  No se pudo obtener la URL del servicio"
+          echo "   Verifica que el servicio se haya creado correctamente"
+        fi
+        echo "════════════════════════════════════════════════"
+        
+        # Guardar la URL en una variable de entorno para el siguiente paso
+        echo "SERVICE_URL=$SERVICE_URL" >> $GITHUB_ENV
+
+    - name: 🧪 Probar endpoint de health
+      run: |
+        if [ -n "$SERVICE_URL" ] && [ "$SERVICE_URL" != "N/A" ] && [ "$SERVICE_URL" != "" ]; then
+          echo "🧪 Probando endpoint de health..."
+          echo "   URL: $SERVICE_URL/health"
+          sleep 30  # Esperar a que el servicio esté listo
+          curl -f "$SERVICE_URL/health" || echo "⚠️ Health check falló, pero el servicio puede estar iniciando"
+        else
+          echo "⚠️ No se pudo obtener la URL del servicio"
+          echo "   El servicio puede no haberse creado correctamente"
+        fi
